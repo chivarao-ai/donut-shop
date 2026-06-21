@@ -1,0 +1,4 @@
+node_modules/
+donuts.db
+*.db-shm
+*.db-wal

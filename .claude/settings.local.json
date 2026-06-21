@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-Command java, javac, adb, gradle -ErrorAction SilentlyContinue)",
+      "PowerShell($env:ANDROID_HOME)",
+      "PowerShell($env:JAVA_HOME)"
+    ]
+  }
+}

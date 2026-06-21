@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: glazed-and-amazed
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
