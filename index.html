@@ -582,7 +582,7 @@
         <div class="order-form-card" id="order-form-card">
           <h3>Your Order</h3>
           <input type="text"  id="order-name"  placeholder="Your Name *" />
-          <input type="email" id="order-email" placeholder="Email (optional)" />
+          <input type="email" id="order-email" placeholder="Your Email *" />
           <textarea id="order-notes" placeholder="Notes, special requests, event date…"></textarea>
 
           <div class="order-summary" id="order-summary">
@@ -714,7 +714,8 @@
       const customerEmail = document.getElementById('order-email').value.trim();
       const notes         = document.getElementById('order-notes').value.trim();
 
-      if (!customerName) { showOrderError('Please enter your name.'); return; }
+      if (!customerName)  { showOrderError('Please enter your name.'); return; }
+      if (!customerEmail) { showOrderError('Please enter your email address.'); return; }
 
       const items = Object.entries(quantities)
         .filter(([, q]) => q > 0)

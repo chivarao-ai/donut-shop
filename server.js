@@ -29,7 +29,7 @@ async function getSettings() {
   return Object.fromEntries(rows.rows.map(r => [r.key, r.value]));
 }
 
-async function sendEmail(subject, html) {
+async function sendEmail(subject, html, to) {
   const s = await getSettings();
   if (!s.smtp_host || !s.smtp_user || !s.smtp_pass) return false;
   const transporter = nodemailer.createTransport({
@@ -40,7 +40,7 @@ async function sendEmail(subject, html) {
   });
   await transporter.sendMail({
     from: s.smtp_from || s.smtp_user,
-    to: s.notify_email,
+    to: to || s.notify_email,
     subject,
     html
   });
@@ -167,7 +167,8 @@ app.delete('/api/donuts/:id', requireAuth, async (req, res) => {
 app.post('/api/orders', async (req, res) => {
   try {
     const { items, customerName, customerEmail, notes } = req.body;
-    if (!customerName) return res.status(400).json({ error: 'Your name is required' });
+    if (!customerName)  return res.status(400).json({ error: 'Your name is required' });
+    if (!customerEmail) return res.status(400).json({ error: 'Your email is required' });
     if (!items || !items.length) return res.status(400).json({ error: 'No items selected' });
 
     const orderItems = [];
@@ -199,16 +200,37 @@ app.post('/api/orders', async (req, res) => {
         `<tr><td>${donut.emoji} ${donut.name}</td><td>×${quantity}</td><td>$${(Number(donut.price) * quantity).toFixed(2)}</td></tr>`)
       .join('');
 
+    const orderTable = `
+      <table border="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-family:sans-serif">
+        <thead><tr style="background:#fff3e0"><th align="left">Item</th><th>Qty</th><th>Price</th></tr></thead>
+        <tbody>${itemRows}</tbody>
+        <tfoot><tr><td colspan="2"><b>Total</b></td><td><b>$${total.toFixed(2)}</b></td></tr></tfoot>
+      </table>`;
+
+    // Notify the shop owner
     sendEmail(
       `🍩 New Order from ${customerName}`,
       `<h2 style="color:#f7567c">New Order Received</h2>
-       <p><b>Customer:</b> ${customerName}${customerEmail ? ` &lt;${customerEmail}&gt;` : ''}</p>
-       <table border="0" cellpadding="6" style="border-collapse:collapse;width:100%">
-         <thead><tr style="background:#fff3e0"><th align="left">Item</th><th>Qty</th><th>Price</th></tr></thead>
-         <tbody>${itemRows}</tbody>
-         <tfoot><tr><td colspan="2"><b>Total</b></td><td><b>$${total.toFixed(2)}</b></td></tr></tfoot>
-       </table>
+       <p><b>Customer:</b> ${customerName} &lt;${customerEmail}&gt;</p>
+       ${orderTable}
        ${notes ? `<p><b>Notes:</b> ${notes}</p>` : ''}`
+    ).catch(() => {});
+
+    // Send confirmation to the customer
+    sendEmail(
+      `Your Glazed & Amazed order is confirmed! 🍩`,
+      `<div style="font-family:sans-serif;max-width:520px;margin:auto">
+        <h2 style="color:#f7567c">Thanks for your order, ${customerName}!</h2>
+        <p>We're getting your donuts ready. Here's what you ordered:</p>
+        ${orderTable}
+        ${notes ? `<p><b>Your notes:</b> ${notes}</p>` : ''}
+        <p style="margin-top:1.5rem;color:#7a5230">
+          📍 123 Sprinkle Lane, Bakerville, CA 90210<br>
+          📞 (555) 867-5309
+        </p>
+        <p style="color:#aaa;font-size:.85rem">Glazed &amp; Amazed — Made fresh daily.</p>
+       </div>`,
+      customerEmail
     ).catch(() => {});
 
     // Low stock alerts
