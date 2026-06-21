@@ -3,7 +3,9 @@
     "allow": [
       "PowerShell(Get-Command java, javac, adb, gradle -ErrorAction SilentlyContinue)",
       "PowerShell($env:ANDROID_HOME)",
-      "PowerShell($env:JAVA_HOME)"
+      "PowerShell($env:JAVA_HOME)",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Microsoft\\\\jdk-17.0.19.10-hotspot\"; $env:ANDROID_HOME = \"C:\\\\Android\\\\Sdk\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;C:\\\\Android\\\\Sdk\\\\cmdline-tools\\\\latest\\\\bin;$env:PATH\"; echo \"y`ny`ny`ny`ny`ny`ny`ny`ny`ny`ny`ny`ny`n\" | sdkmanager.bat --licenses 2>&1 | Select-Object -Last 5)",
+      "PowerShell(\\(Get-Item \"C:\\\\Users\\\\User\\\\donut-shop\\\\android\\\\app\\\\build\\\\outputs\\\\apk\\\\debug\\\\app-debug.apk\"\\).Length / 1MB)"
     ]
   }
 }

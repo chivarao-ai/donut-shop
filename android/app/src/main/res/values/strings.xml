@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Glazed and Amazed</string>
+    <string name="title_activity_main">Glazed and Amazed</string>
+    <string name="package_name">com.glazedandamazed.app</string>
+    <string name="custom_url_scheme">com.glazedandamazed.app</string>
+</resources>

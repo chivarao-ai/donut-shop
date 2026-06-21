@@ -1,0 +1,12 @@
+{
+  "appId": "com.glazedandamazed.app",
+  "appName": "Glazed and Amazed",
+  "webDir": "www",
+  "server": {
+    "url": "https://donut-shop-y7rs.onrender.com",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}
