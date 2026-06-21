@@ -254,33 +254,18 @@
           <div class="form-hint">Low-stock alerts and new order notifications go here.</div>
         </div>
 
-        <h3>SMTP Configuration</h3>
+        <h3>Brevo Email API</h3>
         <p style="font-size:.85rem;color:#9a7050;margin-bottom:1rem">
-          For Gmail, use <code>smtp.gmail.com</code>, port <code>587</code>, and an
-          <a href="https://support.google.com/accounts/answer/185833" target="_blank" style="color:var(--pink)">App Password</a>
-          (not your regular Gmail password).
+          Get your free API key at <a href="https://app.brevo.com/settings/keys/api" target="_blank" style="color:var(--pink)">app.brevo.com</a>
+          (free plan: 300 emails/day).
         </p>
-        <div class="form-row">
-          <div class="form-group">
-            <label>SMTP Host</label>
-            <input type="text" id="s-smtp-host" placeholder="smtp.gmail.com" />
-          </div>
-          <div class="form-group" style="flex:0 0 110px">
-            <label>Port</label>
-            <input type="number" id="s-smtp-port" placeholder="587" />
-          </div>
+        <div class="form-group">
+          <label>Brevo API Key</label>
+          <input type="password" id="s-brevo-key" placeholder="Leave blank to keep current" />
         </div>
         <div class="form-group">
-          <label>Username / Email</label>
-          <input type="text" id="s-smtp-user" placeholder="you@gmail.com" />
-        </div>
-        <div class="form-group">
-          <label>Password / App Password</label>
-          <input type="password" id="s-smtp-pass" placeholder="Leave blank to keep current" />
-        </div>
-        <div class="form-group">
-          <label>From Address <span style="font-weight:400;color:#9a7050">(optional)</span></label>
-          <input type="text" id="s-smtp-from" placeholder="Glazed &amp; Amazed &lt;noreply@example.com&gt;" />
+          <label>From Address <span style="font-weight:400;color:#9a7050">(optional — must be verified in Brevo)</span></label>
+          <input type="text" id="s-smtp-from" placeholder="you@yourdomain.com" />
         </div>
         <div style="display:flex;gap:.8rem;margin-top:1.5rem;flex-wrap:wrap">
           <button class="btn btn-pink" onclick="saveSettings()">Save Settings</button>
@@ -578,20 +563,14 @@
   async function loadSettings() {
     const s = await api('GET', '/api/settings');
     document.getElementById('s-notify-email').value = s.notify_email || '';
-    document.getElementById('s-smtp-host').value    = s.smtp_host    || '';
-    document.getElementById('s-smtp-port').value    = s.smtp_port    || '587';
-    document.getElementById('s-smtp-user').value    = s.smtp_user    || '';
-    document.getElementById('s-smtp-pass').value    = s.smtp_pass    || '';
+    document.getElementById('s-brevo-key').value    = s.brevo_key    || '';
     document.getElementById('s-smtp-from').value    = s.smtp_from    || '';
   }
 
   async function saveSettings() {
     await api('PUT', '/api/settings', {
       notify_email: document.getElementById('s-notify-email').value.trim(),
-      smtp_host:    document.getElementById('s-smtp-host').value.trim(),
-      smtp_port:    document.getElementById('s-smtp-port').value.trim(),
-      smtp_user:    document.getElementById('s-smtp-user').value.trim(),
-      smtp_pass:    document.getElementById('s-smtp-pass').value,
+      brevo_key:    document.getElementById('s-brevo-key').value || '••••••••',
       smtp_from:    document.getElementById('s-smtp-from').value.trim(),
     });
     toast('Settings saved!', 'success');

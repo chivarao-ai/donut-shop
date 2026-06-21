@@ -1,7 +1,6 @@
 const express    = require('express');
 const session    = require('express-session');
 const bcrypt     = require('bcryptjs');
-const nodemailer = require('nodemailer');
 const path       = require('path');
 const { db, init } = require('./db');
 
@@ -31,19 +30,21 @@ async function getSettings() {
 
 async function sendEmail(subject, html, to) {
   const s = await getSettings();
-  if (!s.smtp_host || !s.smtp_user || !s.smtp_pass) return false;
-  const transporter = nodemailer.createTransport({
-    host: s.smtp_host,
-    port: Number(s.smtp_port) || 587,
-    secure: Number(s.smtp_port) === 465,
-    auth: { user: s.smtp_user, pass: s.smtp_pass }
+  if (!s.brevo_key || !s.notify_email) return false;
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: { 'api-key': s.brevo_key, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sender:      { name: 'Glazed & Amazed', email: s.smtp_from || s.smtp_user || 'noreply@glazedandamazed.com' },
+      to:          [{ email: to || s.notify_email }],
+      subject,
+      htmlContent: html,
+    }),
   });
-  await transporter.sendMail({
-    from: s.smtp_from || s.smtp_user,
-    to: to || s.notify_email,
-    subject,
-    html
-  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Brevo error: ${err}`);
+  }
   return true;
 }
 
@@ -89,16 +90,16 @@ app.post('/api/change-password', requireAuth, async (req, res) => {
 app.get('/api/settings', requireAuth, async (req, res) => {
   try {
     const s = await getSettings();
-    res.json({ ...s, smtp_pass: s.smtp_pass ? '••••••••' : '' });
+    res.json({ ...s, brevo_key: s.brevo_key ? '••••••••' : '' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/settings', requireAuth, async (req, res) => {
   try {
-    const allowed = ['smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from', 'notify_email'];
+    const allowed = ['brevo_key', 'smtp_from', 'smtp_user', 'notify_email'];
     for (const key of allowed) {
       if (!(key in req.body)) continue;
-      if (key === 'smtp_pass' && req.body[key] === '••••••••') continue;
+      if (key === 'brevo_key' && req.body[key] === '••••••••') continue;
       await db.execute({ sql: 'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', args: [key, req.body[key]] });
     }
     res.json({ ok: true });

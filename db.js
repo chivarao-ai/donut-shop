@@ -44,8 +44,7 @@ async function init() {
 
   // Default settings
   const settingDefaults = [
-    ['smtp_host', ''], ['smtp_port', '587'], ['smtp_user', ''],
-    ['smtp_pass', ''], ['smtp_from', ''], ['notify_email', 'chivarao@gmail.com'],
+    ['brevo_key', ''], ['smtp_from', ''], ['smtp_user', ''], ['notify_email', 'chivarao@gmail.com'],
   ];
   for (const [k, v] of settingDefaults) {
     await db.execute({ sql: 'INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', args: [k, v] });
