@@ -279,6 +279,20 @@ app.get('/api/donuts', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Order tracking (public, by token) ─────────────────────────────────────────
+
+app.get('/api/track/:token', async (req, res) => {
+  try {
+    const r = await db.execute({
+      sql:  'SELECT type, customer_name, items_json, total, status, created_at, handled_at FROM orders WHERE track_token = ?',
+      args: [req.params.token],
+    });
+    const order = r.rows[0];
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    res.json(order);
+  } catch (e) { res.status(500).json({ error: 'Could not load order' }); }
+});
+
 // ── Donuts (admin write) ──────────────────────────────────────────────────────
 
 app.post('/api/donuts', requireAuth, async (req, res) => {
@@ -352,10 +366,12 @@ app.post('/api/orders', async (req, res) => {
 
     const total = orderItems.reduce((s, { donut, quantity }) => s + Number(donut.price) * quantity, 0);
 
+    const trackToken = crypto.randomBytes(16).toString('hex');
     await db.execute({
-      sql:  'INSERT INTO orders (type, customer_name, customer_email, notes, items_json, total, status, created_at, customer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      args: ['donut', customerName, customerEmail, notes || '', JSON.stringify(orderItems.map(({ donut, quantity }) => ({ name: donut.name, emoji: donut.emoji, quantity, price: Number(donut.price) }))), total, 'pending', new Date().toISOString(), req.session.customer ? req.session.customer.id : null],
+      sql:  'INSERT INTO orders (type, customer_name, customer_email, notes, items_json, total, status, created_at, customer_id, track_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      args: ['donut', customerName, customerEmail, notes || '', JSON.stringify(orderItems.map(({ donut, quantity }) => ({ name: donut.name, emoji: donut.emoji, quantity, price: Number(donut.price) }))), total, 'pending', new Date().toISOString(), req.session.customer ? req.session.customer.id : null, trackToken],
     });
+    const trackLink = `${siteUrl(req)}/track.html?t=${trackToken}`;
 
     const itemRows = orderItems
       .map(({ donut, quantity }) =>
@@ -391,7 +407,8 @@ app.post('/api/orders', async (req, res) => {
           .replace(/\{\{notes\}\}/g, notesHtml)
           .replace(/\{\{total\}\}/g, `$${total.toFixed(2)}`)
       : `<div style="font-family:sans-serif;max-width:520px;margin:auto"><h2 style="color:#f7567c">Thanks for your order, ${esc(customerName)}!</h2><p>We're getting your donuts ready. Here's what you ordered:</p>${orderTable}${notesHtml}<p style="margin-top:1.5rem;color:#7a5230">📍 123 Sprinkle Lane, Bakerville, CA 90210<br>📞 (555) 867-5309</p><p style="color:#aaa;font-size:.85rem">Glazed &amp; Amazed — Made fresh daily.</p></div>`;
-    sendEmail(confirmSubject, confirmBody, customerEmail).catch(() => {});
+    const trackHtml = `<p style="text-align:center;margin:1.5rem 0"><a href="${trackLink}" style="display:inline-block;background:#f7567c;color:#fff;padding:.6rem 1.3rem;border-radius:8px;text-decoration:none;font-family:sans-serif">Track your order →</a></p>`;
+    sendEmail(confirmSubject, confirmBody + trackHtml, customerEmail).catch(() => {});
 
     // Low stock alerts
     for (const { donut } of orderItems) {
@@ -496,10 +513,12 @@ app.post('/api/food-orders', async (req, res) => {
 
     const total = orderItems.reduce((s, { item, quantity }) => s + Number(item.price) * quantity, 0);
 
+    const trackToken = crypto.randomBytes(16).toString('hex');
     await db.execute({
-      sql:  'INSERT INTO orders (type, customer_name, customer_email, notes, items_json, total, status, created_at, customer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      args: ['food', customerName, customerEmail, notes || '', JSON.stringify(orderItems.map(({ item, quantity }) => ({ name: item.name, emoji: item.emoji, quantity, price: Number(item.price) }))), total, 'pending', new Date().toISOString(), req.session.customer ? req.session.customer.id : null],
+      sql:  'INSERT INTO orders (type, customer_name, customer_email, notes, items_json, total, status, created_at, customer_id, track_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      args: ['food', customerName, customerEmail, notes || '', JSON.stringify(orderItems.map(({ item, quantity }) => ({ name: item.name, emoji: item.emoji, quantity, price: Number(item.price) }))), total, 'pending', new Date().toISOString(), req.session.customer ? req.session.customer.id : null, trackToken],
     });
+    const trackLink = `${siteUrl(req)}/track.html?t=${trackToken}`;
 
     const itemRows = orderItems
       .map(({ item, quantity }) =>
@@ -529,6 +548,7 @@ app.post('/api/food-orders', async (req, res) => {
         <p>We're preparing your Surinamese dishes. Here's what you ordered:</p>
         ${orderTable}
         ${notesHtml}
+        <p style="text-align:center;margin:1.5rem 0"><a href="${trackLink}" style="display:inline-block;background:#1d3557;color:#fff;padding:.6rem 1.3rem;border-radius:8px;text-decoration:none">Volg uw bestelling →</a></p>
         <p style="margin-top:1.5rem;color:#1b4332">📍 Paramaribo, Suriname<br>📞 (597) 812-3456</p>
         <p style="color:#aaa;font-size:.85rem">Sranan Kitchen — Authentic Surinamese cuisine, made with love.</p>
        </div>`,

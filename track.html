@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Track Your Order</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: #fff8f0; color: #2d1b0e;
+           min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .card { background: #fff; border-radius: 20px; padding: 2.5rem; max-width: 480px; width: 100%;
+            box-shadow: 0 12px 40px rgba(0,0,0,.1); }
+    h1 { font-size: 1.4rem; margin-bottom: 1.2rem; }
+    .steps { display: flex; justify-content: space-between; margin: 1.5rem 0; position: relative; }
+    .steps::before { content: ''; position: absolute; top: 18px; left: 10%; right: 10%; height: 3px; background: #eee; z-index: 0; }
+    .step { text-align: center; z-index: 1; flex: 1; }
+    .step .dot { width: 38px; height: 38px; border-radius: 50%; background: #eee; color: #999;
+                 display: flex; align-items: center; justify-content: center; margin: 0 auto .4rem; font-size: 1.1rem; }
+    .step.done .dot { background: #28a745; color: #fff; }
+    .step .lbl { font-size: .8rem; color: #777; }
+    .step.done .lbl { color: #28a745; font-weight: 700; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    td { padding: .5rem 0; border-bottom: 1px solid #f5ece4; font-size: .9rem; }
+    .total { font-weight: 800; }
+    .msg { color: #d63b60; }
+    .meta { color: #9a7050; font-size: .85rem; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <h1>Loading your order…</h1>
+  </div>
+
+  <script>
+    const token = new URLSearchParams(location.search).get('t');
+    const card = document.getElementById('card');
+
+    const T = {
+      donut: { title: 'Your Donut Order 🍩', steps: ['Received', 'Preparing', 'Ready'], placed: 'Order placed', ready: 'Ready for pickup!' },
+      food:  { title: 'Uw Bestelling 🍛',   steps: ['Ontvangen', 'In bereiding', 'Klaar'], placed: 'Bestelling geplaatst', ready: 'Klaar om af te halen!' },
+    };
+
+    async function load() {
+      if (!token) { card.innerHTML = '<h1>Invalid link</h1><p class="msg">No order token provided.</p>'; return; }
+      const res = await fetch('/api/track/' + encodeURIComponent(token));
+      if (!res.ok) { card.innerHTML = '<h1>Order not found</h1><p class="msg">We couldn\'t find an order for this link.</p>'; return; }
+      const o = await res.json();
+      const t = T[o.type] || T.donut;
+      const items = JSON.parse(o.items_json);
+      const handled = o.status === 'handled';
+      // 3-step indicator: step 0 always done, step 1 done (preparing), step 2 done only if handled
+      const stepStates = [true, true, handled];
+      const stepsHtml = t.steps.map((s, i) => `
+        <div class="step ${stepStates[i] ? 'done' : ''}">
+          <div class="dot">${stepStates[i] ? '✓' : i + 1}</div>
+          <div class="lbl">${s}</div>
+        </div>`).join('');
+      const rows = items.map(i => `<tr><td>${i.emoji} ${i.name} ×${i.quantity}</td><td style="text-align:right">$${(i.price * i.quantity).toFixed(2)}</td></tr>`).join('');
+      const placed = new Date(o.created_at).toLocaleString();
+      card.innerHTML = `
+        <h1>${t.title}</h1>
+        <p class="meta">${t.placed}: ${placed}</p>
+        <div class="steps">${stepsHtml}</div>
+        <p style="text-align:center;font-weight:700;color:${handled ? '#28a745' : '#fd7e14'};margin:.5rem 0 1rem">
+          ${handled ? '✅ ' + t.ready : '⏳ ' + t.steps[1] + '…'}
+        </p>
+        <table>${rows}<tr><td class="total">Total</td><td class="total" style="text-align:right">$${Number(o.total).toFixed(2)}</td></tr></table>`;
+    }
+    load();
+  </script>
+</body>
+</html>
