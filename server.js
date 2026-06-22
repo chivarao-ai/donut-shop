@@ -159,6 +159,40 @@ app.post('/api/change-password', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Admin users ───────────────────────────────────────────────────────────────
+
+app.get('/api/admins', requireAuth, async (req, res) => {
+  try {
+    const r = await db.execute('SELECT id, username FROM admin ORDER BY id');
+    res.json(r.rows.map(a => ({ id: Number(a.id), username: a.username, isSelf: Number(a.id) === req.session.admin.id })));
+  } catch (e) { res.status(500).json({ error: 'Could not load admins' }); }
+});
+
+app.post('/api/admins', requireAuth, async (req, res) => {
+  try {
+    const username = String(req.body.username || '').trim();
+    const { password } = req.body;
+    if (!username || username.length > 60) return res.status(400).json({ error: 'A valid username is required' });
+    if (!password || String(password).length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    const existing = await db.execute({ sql: 'SELECT id FROM admin WHERE username = ?', args: [username] });
+    if (existing.rows.length) return res.status(409).json({ error: 'That username is already taken' });
+    await db.execute({ sql: 'INSERT INTO admin (username, password_hash) VALUES (?, ?)', args: [username, bcrypt.hashSync(String(password), 10)] });
+    res.status(201).json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Could not create admin' }); }
+});
+
+app.delete('/api/admins/:id', requireAuth, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const count = await db.execute('SELECT COUNT(*) AS c FROM admin');
+    if (Number(count.rows[0].c) <= 1) return res.status(400).json({ error: 'Cannot remove the last admin' });
+    if (id === req.session.admin.id) return res.status(400).json({ error: 'You cannot remove your own account' });
+    const r = await db.execute({ sql: 'DELETE FROM admin WHERE id = ?', args: [id] });
+    if (!r.rowsAffected) return res.status(404).json({ error: 'Not found' });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Could not remove admin' }); }
+});
+
 // ── Customer accounts ─────────────────────────────────────────────────────────
 
 function requireCustomer(req, res, next) {
