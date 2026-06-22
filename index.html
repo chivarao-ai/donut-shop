@@ -938,6 +938,7 @@
     async function placeOrder() {
       const errEl = document.getElementById('order-error');
       errEl.style.display = 'none';
+      if (shopClosed) { showOrderError("Sorry, we're currently closed. Please order during opening hours."); return; }
 
       const customerName  = document.getElementById('order-name').value.trim();
       const customerEmail = document.getElementById('order-email').value.trim();
@@ -1142,8 +1143,24 @@
       if (skipped) showOrderError(`${added} item(s) added. ${skipped} item(s) are currently unavailable.`);
     }
 
+    let shopClosed = false;
+    async function loadHours() {
+      try {
+        const h = await fetch('/api/hours').then(r => r.json());
+        if (h.enabled && !h.open) {
+          shopClosed = true;
+          const sec = document.getElementById('contact');
+          const banner = document.createElement('div');
+          banner.style.cssText = 'max-width:680px;margin:0 auto 1.5rem;background:#fff3cd;border:1px solid #ffc107;border-radius:12px;padding:1rem 1.2rem;text-align:center;color:#856404;font-weight:600;';
+          banner.textContent = '😴 We\'re currently closed — you can browse the menu, but ordering is available during opening hours.';
+          sec.insertBefore(banner, sec.firstChild);
+        }
+      } catch {}
+    }
+
     loadMenu();
     loadCustomer();
+    loadHours();
   </script>
 
 </body>

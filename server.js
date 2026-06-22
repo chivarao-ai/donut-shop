@@ -69,6 +69,34 @@ function isEmail(value) {
   return typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) && value.length <= 254;
 }
 
+// Determine whether the shop is currently open, evaluated in the configured
+// timezone. When the feature is disabled, ordering is always allowed.
+function getOpenState(settings) {
+  if (settings.hours_enabled !== '1') return { enabled: false, open: true };
+  const tz = settings.hours_tz || 'UTC';
+  let hours;
+  try { hours = JSON.parse(settings.hours_json || '{}'); } catch { return { enabled: false, open: true }; }
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(new Date());
+  const get = t => parts.find(p => p.type === t)?.value;
+  const dayIdx = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }[get('weekday')];
+  const nowMin = (Number(get('hour')) % 24) * 60 + Number(get('minute'));
+  const today = hours[dayIdx];
+  if (!today || today.closed) return { enabled: true, open: false, today };
+  const toMin = s => { const [h, m] = String(s).split(':').map(Number); return h * 60 + m; };
+  const open = nowMin >= toMin(today.open) && nowMin < toMin(today.close);
+  return { enabled: true, open, today };
+}
+
+app.get('/api/hours', async (req, res) => {
+  try {
+    const s = await getSettings();
+    const state = getOpenState(s);
+    res.json({ enabled: state.enabled, open: state.open, tz: s.hours_tz, hours: JSON.parse(s.hours_json || '{}') });
+  } catch (e) { res.json({ enabled: false, open: true }); }
+});
+
 async function getSettings() {
   const rows = await db.execute('SELECT key, value FROM settings');
   return Object.fromEntries(rows.rows.map(r => [r.key, r.value]));
@@ -298,7 +326,7 @@ app.get('/api/settings', requireAuth, async (req, res) => {
 
 app.put('/api/settings', requireAuth, async (req, res) => {
   try {
-    const allowed = ['brevo_key', 'smtp_from', 'smtp_user', 'notify_email', 'order_confirm_subject', 'order_confirm_body'];
+    const allowed = ['brevo_key', 'smtp_from', 'smtp_user', 'notify_email', 'order_confirm_subject', 'order_confirm_body', 'hours_enabled', 'hours_tz', 'hours_json'];
     for (const key of allowed) {
       if (!(key in req.body)) continue;
       if (key === 'brevo_key' && req.body[key] === '••••••••') continue;
@@ -390,6 +418,10 @@ app.post('/api/orders', async (req, res) => {
     if (!isEmail(customerEmail)) return res.status(400).json({ error: 'A valid email is required' });
     if (notes && String(notes).length > 1000) return res.status(400).json({ error: 'Notes are too long' });
     if (!items || !items.length) return res.status(400).json({ error: 'No items selected' });
+
+    const openState = getOpenState(await getSettings());
+    if (openState.enabled && !openState.open)
+      return res.status(403).json({ error: 'Sorry, the shop is currently closed. Please order during opening hours.' });
 
     const orderItems = [];
     for (const { donutId, quantity } of items) {
@@ -537,6 +569,10 @@ app.post('/api/food-orders', async (req, res) => {
     if (!isEmail(customerEmail)) return res.status(400).json({ error: 'A valid email is required' });
     if (notes && String(notes).length > 1000) return res.status(400).json({ error: 'Notes are too long' });
     if (!items || !items.length) return res.status(400).json({ error: 'No items selected' });
+
+    const openState = getOpenState(await getSettings());
+    if (openState.enabled && !openState.open)
+      return res.status(403).json({ error: 'Sorry, the kitchen is currently closed. Please order during opening hours.' });
 
     const orderItems = [];
     for (const { itemId, quantity } of items) {

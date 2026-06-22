@@ -869,6 +869,7 @@
     async function placeOrder() {
       const errEl = document.getElementById('order-error');
       errEl.style.display = 'none';
+      if (shopClosed) { showOrderError('Sorry, we zijn momenteel gesloten. Bestel tijdens openingstijden.'); return; }
 
       const customerName  = document.getElementById('order-name').value.trim();
       const customerEmail = document.getElementById('order-email').value.trim();
@@ -1074,8 +1075,24 @@
       if (skipped) showOrderError(`${added} gerecht(en) toegevoegd. ${skipped} gerecht(en) zijn momenteel niet beschikbaar.`);
     }
 
+    let shopClosed = false;
+    async function loadHours() {
+      try {
+        const h = await fetch('/api/hours').then(r => r.json());
+        if (h.enabled && !h.open) {
+          shopClosed = true;
+          const sec = document.getElementById('order');
+          const banner = document.createElement('div');
+          banner.style.cssText = 'max-width:680px;margin:0 auto 1.5rem;background:#fef3cd;border:1px solid #d4a843;border-radius:10px;padding:1rem 1.2rem;text-align:center;color:#6b4c2a;font-weight:600;';
+          banner.textContent = '😴 We zijn momenteel gesloten — u kunt het menu bekijken, maar bestellen kan tijdens openingstijden.';
+          sec.insertBefore(banner, sec.firstChild);
+        }
+      } catch {}
+    }
+
     loadMenu();
     loadCustomer();
+    loadHours();
   </script>
 </body>
 </html>
