@@ -206,6 +206,7 @@
     <button class="tab-btn active" data-tab="inventory"  onclick="showTab('inventory')">Inventory</button>
     <button class="tab-btn"        data-tab="surinamese" onclick="showTab('surinamese')">Surinamese Food</button>
     <button class="tab-btn"        data-tab="orders"     onclick="showTab('orders')">Orders <span id="pending-badge" style="display:none;background:#f7567c;color:white;border-radius:50px;font-size:.72rem;padding:.1rem .5rem;margin-left:.3rem;font-weight:700"></span></button>
+    <button class="tab-btn"        data-tab="reviews"    onclick="showTab('reviews')">Reviews</button>
     <button class="tab-btn"        data-tab="settings"   onclick="showTab('settings')">Email Settings</button>
   </div>
 
@@ -360,6 +361,16 @@
           <button class="btn btn-ghost" onclick="testEmail()">Send Test Email</button>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- REVIEWS TAB -->
+<div id="tab-reviews" class="tab-content">
+  <div class="main">
+    <div class="toolbar"><div><h2>Customer Reviews</h2><p>Moderate reviews left on both storefronts.</p></div></div>
+    <div class="card" style="padding:1rem 1.2rem;">
+      <div id="reviews-admin-list">Loading…</div>
     </div>
   </div>
 </div>
@@ -584,6 +595,44 @@
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.getElementById(`tab-${name}`).classList.add('active');
     if (name === 'orders') loadOrders();
+    if (name === 'reviews') loadReviews();
+  }
+
+  // ── Reviews moderation ──────────────────────────────────────────────────────
+
+  async function loadReviews() {
+    const el = document.getElementById('reviews-admin-list');
+    el.textContent = 'Loading…';
+    try {
+      const reviews = await api('GET', '/api/admin/reviews');
+      if (!reviews.length) { el.innerHTML = '<p style="color:#9a7050">No reviews yet.</p>'; return; }
+      el.innerHTML = reviews.map(r => {
+        const stars = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
+        const when = new Date(r.created_at).toLocaleDateString();
+        const tag = r.type === 'food' ? 'Surinamese' : 'Donut';
+        return `<div style="border-bottom:1px solid #f5ece4;padding:.7rem 0;display:flex;justify-content:space-between;gap:1rem;">
+          <div>
+            <div><strong>${escapeHtmlA(r.customer_name)}</strong>
+              <span style="color:#ffb347;">${stars}</span>
+              <span style="font-size:.75rem;background:#eee;border-radius:50px;padding:.1rem .6rem;color:#777;">${tag} #${r.item_id}</span>
+            </div>
+            ${r.comment ? `<div style="color:#7a5230;margin-top:.2rem;font-size:.9rem;">${escapeHtmlA(r.comment)}</div>` : ''}
+            <div style="color:#bba;font-size:.75rem;margin-top:.2rem;">${when}</div>
+          </div>
+          <button class="btn btn-red btn-sm" style="align-self:center;" onclick="deleteReview(${r.id})">Delete</button>
+        </div>`;
+      }).join('');
+    } catch { el.innerHTML = '<p style="color:#9a7050">Could not load reviews.</p>'; }
+  }
+
+  async function deleteReview(id) {
+    await api('DELETE', `/api/reviews/${id}`);
+    toast('Review deleted', 'success');
+    loadReviews();
+  }
+
+  function escapeHtmlA(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
 
   // ── Donuts ──────────────────────────────────────────────────────────────────

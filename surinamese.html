@@ -501,6 +501,18 @@
     </div>
   </div>
 
+  <!-- REVIEWS MODAL -->
+  <div id="reviews-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:300;align-items:flex-start;justify-content:center;overflow:auto;padding:3rem 1rem;">
+    <div style="background:#fdf6e3;border-radius:16px;max-width:460px;width:100%;padding:2rem;box-shadow:0 12px 40px rgba(0,0,0,.3);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <h3 id="reviews-title" style="color:var(--navy);font-size:1.25rem;">Beoordelingen</h3>
+        <button onclick="closeReviews()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--navy);">×</button>
+      </div>
+      <div id="review-form" style="border-bottom:1px dashed #d8c9a8;padding-bottom:1rem;margin-bottom:1rem;"></div>
+      <div id="reviews-list" style="font-size:.9rem;color:var(--brown);">Laden…</div>
+    </div>
+  </div>
+
   <!-- HERO -->
   <section class="hero">
     <div class="hero-text">
@@ -652,6 +664,24 @@
     let quantities = {};
 
     let activeTag = '';
+    let reviewSummary = {};
+
+    async function loadReviewSummary() {
+      try {
+        const rows = await fetch('/api/reviews/summary?type=food').then(r => r.json());
+        reviewSummary = {};
+        rows.forEach(r => { reviewSummary[r.item_id] = { avg: Number(r.avg), count: Number(r.count) }; });
+      } catch { reviewSummary = {}; }
+    }
+    function starHtml(avg) {
+      const full = Math.round(avg);
+      return `<span style="color:#d4a843;letter-spacing:1px;">${'★'.repeat(full)}${'☆'.repeat(5 - full)}</span>`;
+    }
+    function ratingLine(id) {
+      const s = reviewSummary[id];
+      if (!s) return `<div style="font-size:.8rem;color:#aaa;">Nog geen beoordelingen</div>`;
+      return `<div style="font-size:.82rem;">${starHtml(s.avg)} <span style="color:var(--brown);">${s.avg.toFixed(1)} (${s.count})</span></div>`;
+    }
 
     function parseTags(d) {
       return (d.tags || '').split(',').map(t => t.trim()).filter(Boolean);
@@ -683,12 +713,83 @@
           <div class="food-card${d.quantity === 0 ? ' unavailable' : ''}">
             <span class="emoji">${d.emoji}</span>
             <h3>${d.name}</h3>
+            <div style="margin:.2rem 0 .5rem;">${ratingLine(d.id)}</div>
             <p>${d.description}</p>
             <span class="price-tag">SRD ${Number(d.price).toFixed(2)}</span>
             ${d.quantity === 0 ? '<span class="sold-out-badge">Uitverkocht</span>' : ''}
             ${tagBadges ? `<div style="margin-top:.6rem;">${tagBadges}</div>` : ''}
+            <div style="margin-top:.7rem;"><a href="#" onclick="openReviews(${d.id}, '${d.name.replace(/'/g, "\\'")}');return false;" style="font-size:.8rem;color:var(--navy);font-weight:600;">Beoordelingen lezen &amp; schrijven ›</a></div>
           </div>`;
       }).join('');
+    }
+
+    // ── Beoordelingen ───────────────────────────────────────────────────────────
+    let reviewItemId = null, reviewItemName = '', pickedStars = 0;
+
+    async function openReviews(id, name) {
+      reviewItemId = id; reviewItemName = name;
+      document.getElementById('reviews-title').textContent = `Beoordelingen — ${name}`;
+      document.getElementById('reviews-overlay').style.display = 'flex';
+      renderReviewForm();
+      await loadReviewsList();
+    }
+    function closeReviews() { document.getElementById('reviews-overlay').style.display = 'none'; }
+
+    function renderReviewForm() {
+      const el = document.getElementById('review-form');
+      if (!currentCustomer) {
+        el.innerHTML = `<p style="font-size:.85rem;color:var(--brown);">Log <a href="#" onclick="closeReviews();openAccount();return false;" style="color:var(--navy);">in</a> om een beoordeling te plaatsen.</p>`;
+        return;
+      }
+      el.innerHTML = `
+        <div style="margin-bottom:.5rem;" id="star-pick">
+          ${[1,2,3,4,5].map(n => `<span onclick="setStars(${n})" data-n="${n}" style="cursor:pointer;font-size:1.5rem;color:#ddd;">★</span>`).join('')}
+        </div>
+        <textarea id="review-comment" placeholder="Deel uw mening (optioneel)" style="width:100%;padding:.6rem .8rem;border:2px solid #d8c9a8;border-radius:8px;font-family:inherit;font-size:.9rem;min-height:60px;"></textarea>
+        <button class="btn" style="margin-top:.6rem;padding:.4rem 1rem;font-size:.85rem;" onclick="submitReview()">Plaatsen</button>
+        <span id="review-msg" style="font-size:.82rem;margin-left:.6rem;"></span>`;
+      pickedStars = 0;
+    }
+    function setStars(n) {
+      pickedStars = n;
+      document.querySelectorAll('#star-pick span').forEach(s => {
+        s.style.color = Number(s.dataset.n) <= n ? '#d4a843' : '#ddd';
+      });
+    }
+    async function submitReview() {
+      const msg = document.getElementById('review-msg');
+      if (!pickedStars) { msg.style.color = 'var(--red)'; msg.textContent = 'Kies een sterbeoordeling.'; return; }
+      const comment = document.getElementById('review-comment').value;
+      const res = await fetch('/api/reviews', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'food', itemId: reviewItemId, rating: pickedStars, comment })
+      });
+      const data = await res.json();
+      if (!res.ok) { msg.style.color = 'var(--red)'; msg.textContent = data.error || 'Mislukt.'; return; }
+      msg.style.color = '#2d6a4f'; msg.textContent = 'Bedankt voor uw beoordeling!';
+      await loadReviewSummary();
+      await loadReviewsList();
+      renderMenu();
+    }
+    async function loadReviewsList() {
+      const el = document.getElementById('reviews-list');
+      el.textContent = 'Laden…';
+      try {
+        const reviews = await fetch(`/api/reviews?type=food&itemId=${reviewItemId}`).then(r => r.json());
+        if (!reviews.length) { el.innerHTML = '<p style="color:var(--brown);">Nog geen beoordelingen — wees de eerste!</p>'; return; }
+        el.innerHTML = reviews.map(r => `
+          <div style="border-bottom:1px solid #e8dcc0;padding:.6rem 0;">
+            <div style="display:flex;justify-content:space-between;">
+              <strong>${escapeHtml(r.customer_name)}</strong>
+              ${starHtml(r.rating)}
+            </div>
+            ${r.comment ? `<div style="margin-top:.2rem;">${escapeHtml(r.comment)}</div>` : ''}
+            <div style="color:#aaa;font-size:.75rem;margin-top:.2rem;">${new Date(r.created_at).toLocaleDateString('nl-NL')}</div>
+          </div>`).join('');
+      } catch { el.innerHTML = '<p style="color:var(--brown);">Kon beoordelingen niet laden.</p>'; }
+    }
+    function escapeHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     }
 
     async function loadMenu() {
@@ -696,6 +797,7 @@
       const orderGrid = document.getElementById('order-picker-grid');
       try {
         allItems = await fetch('/api/food-items').then(r => r.json());
+        await loadReviewSummary();
 
         buildMenuFilters();
         renderMenu();

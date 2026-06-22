@@ -700,6 +700,84 @@ app.post('/api/orders/:id/handle', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Reviews ───────────────────────────────────────────────────────────────────
+
+// Average rating + count per item for a product type (public).
+app.get('/api/reviews/summary', async (req, res) => {
+  try {
+    const type = req.query.type === 'food' ? 'food' : 'donut';
+    const r = await db.execute({
+      sql:  'SELECT item_id, AVG(rating) AS avg, COUNT(*) AS count FROM reviews WHERE type = ? GROUP BY item_id',
+      args: [type],
+    });
+    res.json(r.rows);
+  } catch (e) { res.status(500).json({ error: 'Could not load ratings' }); }
+});
+
+// All reviews for one item (public).
+app.get('/api/reviews', async (req, res) => {
+  try {
+    const type = req.query.type === 'food' ? 'food' : 'donut';
+    const itemId = Number(req.query.itemId);
+    if (!itemId) return res.status(400).json({ error: 'itemId required' });
+    const r = await db.execute({
+      sql:  'SELECT id, customer_name, rating, comment, created_at FROM reviews WHERE type = ? AND item_id = ? ORDER BY created_at DESC',
+      args: [type, itemId],
+    });
+    res.json(r.rows);
+  } catch (e) { res.status(500).json({ error: 'Could not load reviews' }); }
+});
+
+// Submit a review (logged-in customers only; one per customer per item).
+app.post('/api/reviews', requireCustomer, async (req, res) => {
+  try {
+    const type   = req.body.type === 'food' ? 'food' : 'donut';
+    const itemId = Number(req.body.itemId);
+    const rating = Number(req.body.rating);
+    const comment = String(req.body.comment || '').trim();
+    if (!itemId) return res.status(400).json({ error: 'Invalid item' });
+    if (!(rating >= 1 && rating <= 5)) return res.status(400).json({ error: 'Rating must be 1–5 stars' });
+    if (comment.length > 1000) return res.status(400).json({ error: 'Comment is too long' });
+
+    const table = type === 'food' ? 'food_items' : 'donuts';
+    const exists = await db.execute({ sql: `SELECT id FROM ${table} WHERE id = ?`, args: [itemId] });
+    if (!exists.rows.length) return res.status(404).json({ error: 'Item not found' });
+
+    const prior = await db.execute({
+      sql:  'SELECT id FROM reviews WHERE type = ? AND item_id = ? AND customer_id = ?',
+      args: [type, itemId, req.session.customer.id],
+    });
+    if (prior.rows.length) {
+      await db.execute({
+        sql:  'UPDATE reviews SET rating = ?, comment = ?, created_at = ? WHERE id = ?',
+        args: [rating, comment, new Date().toISOString(), prior.rows[0].id],
+      });
+    } else {
+      await db.execute({
+        sql:  'INSERT INTO reviews (type, item_id, customer_id, customer_name, rating, comment, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        args: [type, itemId, req.session.customer.id, req.session.customer.name, rating, comment, new Date().toISOString()],
+      });
+    }
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Could not save review' }); }
+});
+
+// Admin: list and delete reviews (moderation).
+app.get('/api/admin/reviews', requireAuth, async (req, res) => {
+  try {
+    const r = await db.execute('SELECT * FROM reviews ORDER BY created_at DESC LIMIT 200');
+    res.json(r.rows);
+  } catch (e) { res.status(500).json({ error: 'Could not load reviews' }); }
+});
+
+app.delete('/api/reviews/:id', requireAuth, async (req, res) => {
+  try {
+    const r = await db.execute({ sql: 'DELETE FROM reviews WHERE id = ?', args: [req.params.id] });
+    if (!r.rowsAffected) return res.status(404).json({ error: 'Not found' });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Could not delete' }); }
+});
+
 // ── Start ─────────────────────────────────────────────────────────────────────
 
 init().then(() => {

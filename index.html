@@ -578,6 +578,18 @@
     </div>
   </div>
 
+  <!-- REVIEWS MODAL -->
+  <div id="reviews-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;align-items:flex-start;justify-content:center;overflow:auto;padding:3rem 1rem;">
+    <div style="background:#fff;border-radius:20px;max-width:460px;width:100%;padding:2rem;box-shadow:0 12px 40px rgba(0,0,0,.2);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <h3 id="reviews-title" style="color:var(--brown);font-size:1.25rem;">Reviews</h3>
+        <button onclick="closeReviews()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#9a7050;">×</button>
+      </div>
+      <div id="review-form" style="border-bottom:1px dashed #f0d0dc;padding-bottom:1rem;margin-bottom:1rem;"></div>
+      <div id="reviews-list" style="font-size:.9rem;color:#7a5230;">Loading…</div>
+    </div>
+  </div>
+
   <!-- HERO -->
   <section class="hero">
     <div class="hero-text">
@@ -715,6 +727,26 @@
     let quantities = {};
 
     let activeTag = '';
+    let reviewSummary = {};
+
+    async function loadReviewSummary() {
+      try {
+        const rows = await fetch('/api/reviews/summary?type=donut').then(r => r.json());
+        reviewSummary = {};
+        rows.forEach(r => { reviewSummary[r.item_id] = { avg: Number(r.avg), count: Number(r.count) }; });
+      } catch { reviewSummary = {}; }
+    }
+
+    function starHtml(avg) {
+      const full = Math.round(avg);
+      return `<span style="color:#ffb347;letter-spacing:1px;">${'★'.repeat(full)}${'☆'.repeat(5 - full)}</span>`;
+    }
+
+    function ratingLine(id) {
+      const s = reviewSummary[id];
+      if (!s) return `<div style="font-size:.8rem;color:#bba;">No reviews yet</div>`;
+      return `<div style="font-size:.82rem;">${starHtml(s.avg)} <span style="color:#9a7050;">${s.avg.toFixed(1)} (${s.count})</span></div>`;
+    }
 
     function parseTags(d) {
       return (d.tags || '').split(',').map(t => t.trim()).filter(Boolean);
@@ -746,12 +778,84 @@
           <div class="donut-card${d.quantity === 0 ? ' unavailable' : ''}">
             <span class="emoji">${d.emoji}</span>
             <h3>${d.name}</h3>
+            <div style="margin:.2rem 0 .5rem;">${ratingLine(d.id)}</div>
             <p>${d.description}</p>
             <span class="price-tag">$${Number(d.price).toFixed(2)}</span>
             ${d.quantity === 0 ? '<span class="sold-out-badge">Sold Out</span>' : ''}
             ${tagBadges ? `<div style="margin-top:.6rem;">${tagBadges}</div>` : ''}
+            <div style="margin-top:.7rem;"><a href="#" onclick="openReviews(${d.id}, '${d.name.replace(/'/g, "\\'")}');return false;" style="font-size:.8rem;color:var(--pink);font-weight:600;">Read &amp; write reviews ›</a></div>
           </div>`;
       }).join('');
+    }
+
+    // ── Reviews ─────────────────────────────────────────────────────────────────
+    let reviewItemId = null, reviewItemName = '';
+
+    async function openReviews(id, name) {
+      reviewItemId = id; reviewItemName = name;
+      document.getElementById('reviews-title').textContent = `Reviews — ${name}`;
+      document.getElementById('reviews-overlay').style.display = 'flex';
+      renderReviewForm();
+      await loadReviewsList();
+    }
+    function closeReviews() { document.getElementById('reviews-overlay').style.display = 'none'; }
+
+    function renderReviewForm() {
+      const el = document.getElementById('review-form');
+      if (!currentCustomer) {
+        el.innerHTML = `<p style="font-size:.85rem;color:#9a7050;">Please <a href="#" onclick="closeReviews();openAccount();return false;" style="color:var(--pink);">log in</a> to leave a review.</p>`;
+        return;
+      }
+      el.innerHTML = `
+        <div style="margin-bottom:.5rem;" id="star-pick">
+          ${[1,2,3,4,5].map(n => `<span onclick="setStars(${n})" data-n="${n}" style="cursor:pointer;font-size:1.5rem;color:#ddd;">★</span>`).join('')}
+        </div>
+        <textarea id="review-comment" placeholder="Share your thoughts (optional)" style="width:100%;padding:.6rem .8rem;border:2px solid #f0d0dc;border-radius:8px;font-family:inherit;font-size:.9rem;min-height:60px;"></textarea>
+        <button class="btn btn-pink btn-sm" style="margin-top:.6rem;" onclick="submitReview()">Submit Review</button>
+        <span id="review-msg" style="font-size:.82rem;margin-left:.6rem;"></span>`;
+      pickedStars = 0;
+    }
+    let pickedStars = 0;
+    function setStars(n) {
+      pickedStars = n;
+      document.querySelectorAll('#star-pick span').forEach(s => {
+        s.style.color = Number(s.dataset.n) <= n ? '#ffb347' : '#ddd';
+      });
+    }
+    async function submitReview() {
+      const msg = document.getElementById('review-msg');
+      if (!pickedStars) { msg.style.color = 'var(--dark-pink)'; msg.textContent = 'Pick a star rating.'; return; }
+      const comment = document.getElementById('review-comment').value;
+      const res = await fetch('/api/reviews', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'donut', itemId: reviewItemId, rating: pickedStars, comment })
+      });
+      const data = await res.json();
+      if (!res.ok) { msg.style.color = 'var(--dark-pink)'; msg.textContent = data.error || 'Failed.'; return; }
+      msg.style.color = 'var(--green, #28a745)'; msg.textContent = 'Thanks for your review!';
+      await loadReviewSummary();
+      await loadReviewsList();
+      renderMenu();
+    }
+    async function loadReviewsList() {
+      const el = document.getElementById('reviews-list');
+      el.textContent = 'Loading…';
+      try {
+        const reviews = await fetch(`/api/reviews?type=donut&itemId=${reviewItemId}`).then(r => r.json());
+        if (!reviews.length) { el.innerHTML = '<p style="color:#9a7050;">No reviews yet — be the first!</p>'; return; }
+        el.innerHTML = reviews.map(r => `
+          <div style="border-bottom:1px solid #f5ece4;padding:.6rem 0;">
+            <div style="display:flex;justify-content:space-between;">
+              <strong>${escapeHtml(r.customer_name)}</strong>
+              ${starHtml(r.rating)}
+            </div>
+            ${r.comment ? `<div style="margin-top:.2rem;">${escapeHtml(r.comment)}</div>` : ''}
+            <div style="color:#bba;font-size:.75rem;margin-top:.2rem;">${new Date(r.created_at).toLocaleDateString()}</div>
+          </div>`).join('');
+      } catch { el.innerHTML = '<p style="color:#9a7050;">Could not load reviews.</p>'; }
+    }
+    function escapeHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     }
 
     async function loadMenu() {
@@ -759,6 +863,7 @@
       const orderGrid = document.getElementById('order-picker-grid');
       try {
         allDonuts = await fetch('/api/donuts').then(r => r.json());
+        await loadReviewSummary();
 
         // ── Display menu (with search + tag filters) ──────────────────────────
         buildMenuFilters();

@@ -61,6 +61,17 @@ async function init() {
       password_hash TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS reviews (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL,
+      item_id INTEGER NOT NULL,
+      customer_id INTEGER,
+      customer_name TEXT NOT NULL,
+      rating INTEGER NOT NULL,
+      comment TEXT DEFAULT '',
+      created_at TEXT NOT NULL
+    );
   `);
 
   // Idempotent migrations
