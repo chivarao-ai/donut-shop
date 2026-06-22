@@ -950,13 +950,14 @@
       el.textContent = 'If an account exists for that email, a reset link is on its way.';
       el.style.display = 'block';
     }
+    let myOrders = [];
     async function loadOrderHistory() {
       const el = document.getElementById('order-history');
       el.textContent = 'Loading…';
       try {
-        const orders = await fetch('/api/customer/orders').then(r => r.json());
-        if (!orders.length) { el.innerHTML = '<p style="color:#9a7050">No orders yet.</p>'; return; }
-        el.innerHTML = orders.map(o => {
+        myOrders = (await fetch('/api/customer/orders').then(r => r.json())).filter(o => o.type === 'donut');
+        if (!myOrders.length) { el.innerHTML = '<p style="color:#9a7050">No donut orders yet.</p>'; return; }
+        el.innerHTML = myOrders.map((o, idx) => {
           const items = JSON.parse(o.items_json);
           const when = new Date(o.created_at).toLocaleDateString();
           const badge = o.status === 'handled' ? '✅ Ready/Done' : '⏳ Pending';
@@ -964,10 +965,31 @@
           return `<div style="border:1px solid #f0d0dc;border-radius:10px;padding:.7rem .9rem;margin-bottom:.6rem;">
             <div style="display:flex;justify-content:space-between;"><strong>${when}</strong><span>${badge}</span></div>
             <div style="margin:.3rem 0;color:#9a7050;">${lines}</div>
-            <div style="text-align:right;font-weight:700;color:var(--brown);">$${Number(o.total).toFixed(2)}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <button class="btn btn-outline btn-sm" style="padding:.3rem .9rem;font-size:.8rem;" onclick="reorder(${idx})">Order again</button>
+              <span style="font-weight:700;color:var(--brown);">$${Number(o.total).toFixed(2)}</span>
+            </div>
           </div>`;
         }).join('');
       } catch { el.innerHTML = '<p style="color:#9a7050">Could not load orders.</p>'; }
+    }
+
+    function reorder(idx) {
+      const items = JSON.parse(myOrders[idx].items_json);
+      let added = 0, skipped = 0;
+      for (const it of items) {
+        const d = allDonuts.find(x => x.name === it.name && x.available && x.quantity > 0);
+        if (!d) { skipped++; continue; }
+        const next = Math.min(d.quantity, (quantities[d.id] || 0) + it.quantity);
+        quantities[d.id] = next;
+        const span = document.getElementById(`qty-${d.id}`);
+        if (span) span.textContent = next;
+        added++;
+      }
+      updateSummary();
+      closeAccount();
+      document.getElementById('contact').scrollIntoView({ behavior: 'smooth' });
+      if (skipped) showOrderError(`${added} item(s) added. ${skipped} item(s) are currently unavailable.`);
     }
 
     loadMenu();

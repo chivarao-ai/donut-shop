@@ -884,13 +884,14 @@
       el.textContent = 'Als er een account bestaat voor dit e-mailadres, is er een herstel-link onderweg.';
       el.style.display = 'block';
     }
+    let myOrders = [];
     async function loadOrderHistory() {
       const el = document.getElementById('order-history');
       el.textContent = 'Laden…';
       try {
-        const orders = await fetch('/api/customer/orders').then(r => r.json());
-        if (!orders.length) { el.innerHTML = '<p style="color:var(--brown)">Nog geen bestellingen.</p>'; return; }
-        el.innerHTML = orders.map(o => {
+        myOrders = (await fetch('/api/customer/orders').then(r => r.json())).filter(o => o.type === 'food');
+        if (!myOrders.length) { el.innerHTML = '<p style="color:var(--brown)">Nog geen bestellingen.</p>'; return; }
+        el.innerHTML = myOrders.map((o, idx) => {
           const items = JSON.parse(o.items_json);
           const when = new Date(o.created_at).toLocaleDateString('nl-NL');
           const badge = o.status === 'handled' ? '✅ Klaar' : '⏳ In behandeling';
@@ -898,10 +899,31 @@
           return `<div style="border:1px solid #d8c9a8;border-radius:8px;padding:.7rem .9rem;margin-bottom:.6rem;">
             <div style="display:flex;justify-content:space-between;"><strong>${when}</strong><span>${badge}</span></div>
             <div style="margin:.3rem 0;color:#6b4c2a;">${lines}</div>
-            <div style="text-align:right;font-weight:700;color:var(--navy);">$${Number(o.total).toFixed(2)}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <button class="btn btn-outline" style="padding:.3rem .9rem;font-size:.8rem;" onclick="reorder(${idx})">Opnieuw bestellen</button>
+              <span style="font-weight:700;color:var(--navy);">$${Number(o.total).toFixed(2)}</span>
+            </div>
           </div>`;
         }).join('');
       } catch { el.innerHTML = '<p style="color:var(--brown)">Kon bestellingen niet laden.</p>'; }
+    }
+
+    function reorder(idx) {
+      const items = JSON.parse(myOrders[idx].items_json);
+      let added = 0, skipped = 0;
+      for (const it of items) {
+        const d = allItems.find(x => x.name === it.name && x.available && x.quantity > 0);
+        if (!d) { skipped++; continue; }
+        const next = Math.min(d.quantity, (quantities[d.id] || 0) + it.quantity);
+        quantities[d.id] = next;
+        const span = document.getElementById(`qty-${d.id}`);
+        if (span) span.textContent = next;
+        added++;
+      }
+      updateSummary();
+      closeAccount();
+      document.getElementById('order').scrollIntoView({ behavior: 'smooth' });
+      if (skipped) showOrderError(`${added} gerecht(en) toegevoegd. ${skipped} gerecht(en) zijn momenteel niet beschikbaar.`);
     }
 
     loadMenu();
