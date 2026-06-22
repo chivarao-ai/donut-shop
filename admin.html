@@ -407,6 +407,11 @@
         <div class="form-hint">Email alert fires when stock ≤ this number after an order.</div>
       </div>
     </div>
+    <div class="form-group">
+      <label>Dietary Tags</label>
+      <input type="text" id="modal-tags" placeholder="e.g. vegan, gluten-free, nut-free" />
+      <div class="form-hint">Comma-separated labels shown on the menu and used for filtering.</div>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('donut-modal')">Cancel</button>
       <button class="btn btn-pink"  onclick="saveDonut()">Save Donut</button>
@@ -494,6 +499,11 @@
         <input type="number" id="food-modal-threshold" min="0" placeholder="5" />
         <div class="form-hint">Email alert fires when stock ≤ this number after an order.</div>
       </div>
+    </div>
+    <div class="form-group">
+      <label>Dietary Tags</label>
+      <input type="text" id="food-modal-tags" placeholder="e.g. halal, spicy, vegetarian" />
+      <div class="form-hint">Comma-separated labels shown on the menu and used for filtering.</div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('food-modal')">Cancel</button>
@@ -655,6 +665,7 @@
     document.getElementById('modal-available').value = '1';
     document.getElementById('modal-quantity').value  = '';
     document.getElementById('modal-threshold').value = '5';
+    document.getElementById('modal-tags').value      = '';
     openModal('donut-modal');
   }
 
@@ -669,6 +680,7 @@
     document.getElementById('modal-available').value = d.available ? '1' : '0';
     document.getElementById('modal-quantity').value  = d.quantity;
     document.getElementById('modal-threshold').value = d.low_stock_threshold;
+    document.getElementById('modal-tags').value      = d.tags || '';
     openModal('donut-modal');
   }
 
@@ -682,6 +694,7 @@
       available:           document.getElementById('modal-available').value === '1',
       quantity:            parseInt(document.getElementById('modal-quantity').value) || 0,
       low_stock_threshold: parseInt(document.getElementById('modal-threshold').value) || 5,
+      tags:                document.getElementById('modal-tags').value.trim(),
     };
 
     if (!payload.name || isNaN(payload.price)) { toast('Name and price are required', 'error'); return; }
@@ -873,6 +886,7 @@
     document.getElementById('food-modal-available').value     = '1';
     document.getElementById('food-modal-quantity').value      = '';
     document.getElementById('food-modal-threshold').value     = '5';
+    document.getElementById('food-modal-tags').value          = '';
     openModal('food-modal');
   }
 
@@ -887,6 +901,7 @@
     document.getElementById('food-modal-available').value     = d.available ? '1' : '0';
     document.getElementById('food-modal-quantity').value      = d.quantity;
     document.getElementById('food-modal-threshold').value     = d.low_stock_threshold;
+    document.getElementById('food-modal-tags').value          = d.tags || '';
     openModal('food-modal');
   }
 
@@ -900,6 +915,7 @@
       available:           document.getElementById('food-modal-available').value === '1',
       quantity:            parseInt(document.getElementById('food-modal-quantity').value) || 0,
       low_stock_threshold: parseInt(document.getElementById('food-modal-threshold').value) || 5,
+      tags:                document.getElementById('food-modal-tags').value.trim(),
     };
     if (!payload.name || isNaN(payload.price)) { toast('Name and price are required', 'error'); return; }
     if (id) {

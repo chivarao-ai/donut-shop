@@ -66,6 +66,8 @@ async function init() {
   // Idempotent migrations
   try { await db.execute('ALTER TABLE donuts ADD COLUMN quantity INTEGER DEFAULT 0'); } catch {}
   try { await db.execute('ALTER TABLE donuts ADD COLUMN low_stock_threshold INTEGER DEFAULT 5'); } catch {}
+  try { await db.execute("ALTER TABLE donuts ADD COLUMN tags TEXT DEFAULT ''"); } catch {}
+  try { await db.execute("ALTER TABLE food_items ADD COLUMN tags TEXT DEFAULT ''"); } catch {}
   try { await db.execute('ALTER TABLE orders ADD COLUMN customer_id INTEGER'); } catch {}
   try { await db.execute('ALTER TABLE orders ADD COLUMN track_token TEXT'); } catch {}
   try { await db.execute('ALTER TABLE customers ADD COLUMN reset_token TEXT'); } catch {}

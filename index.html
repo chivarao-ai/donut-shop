@@ -597,6 +597,12 @@
       <p>Made from scratch every morning — get here early before they sell out!</p>
     </div>
 
+    <div style="max-width:640px;margin:0 auto 2rem;text-align:center;">
+      <input type="text" id="menu-search" placeholder="🔍 Search donuts…" oninput="renderMenu()"
+             style="width:100%;max-width:380px;padding:.7rem 1.1rem;border:2px solid #f0d0dc;border-radius:50px;font-size:.95rem;font-family:inherit;" />
+      <div id="menu-filters" style="margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap;justify-content:center;"></div>
+    </div>
+
     <div class="menu-grid" id="menu-grid">
       <p style="color:#9a7050;font-size:1rem;">Loading fresh donuts...</p>
     </div>
@@ -708,26 +714,55 @@
     let allDonuts = [];
     let quantities = {};
 
+    let activeTag = '';
+
+    function parseTags(d) {
+      return (d.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+    }
+
+    function buildMenuFilters() {
+      const wrap = document.getElementById('menu-filters');
+      const tags = [...new Set(allDonuts.filter(d => d.available).flatMap(parseTags))].sort();
+      if (!tags.length) { wrap.innerHTML = ''; return; }
+      const chip = (label, val) => `<button onclick="setTag('${val}')" style="padding:.35rem 1rem;border-radius:50px;border:2px solid var(--pink);cursor:pointer;font-size:.82rem;font-weight:600;font-family:inherit;background:${activeTag === val ? 'var(--pink)' : '#fff'};color:${activeTag === val ? '#fff' : 'var(--pink)'};">${label}</button>`;
+      wrap.innerHTML = chip('All', '') + tags.map(t => chip(t, t)).join('');
+    }
+
+    function setTag(t) { activeTag = t; buildMenuFilters(); renderMenu(); }
+
+    function renderMenu() {
+      const menuGrid = document.getElementById('menu-grid');
+      const q = (document.getElementById('menu-search').value || '').toLowerCase().trim();
+      let list = allDonuts.filter(d => d.available);
+      if (activeTag) list = list.filter(d => parseTags(d).includes(activeTag));
+      if (q) list = list.filter(d => (d.name + ' ' + (d.description || '')).toLowerCase().includes(q));
+      if (!list.length) {
+        menuGrid.innerHTML = '<p style="color:#9a7050">No donuts match your search.</p>';
+        return;
+      }
+      menuGrid.innerHTML = list.map(d => {
+        const tagBadges = parseTags(d).map(t => `<span style="display:inline-block;background:#fff0f5;color:#d63b60;font-size:.7rem;font-weight:700;padding:.15rem .6rem;border-radius:50px;margin:.15rem .15rem 0;">${t}</span>`).join('');
+        return `
+          <div class="donut-card${d.quantity === 0 ? ' unavailable' : ''}">
+            <span class="emoji">${d.emoji}</span>
+            <h3>${d.name}</h3>
+            <p>${d.description}</p>
+            <span class="price-tag">$${Number(d.price).toFixed(2)}</span>
+            ${d.quantity === 0 ? '<span class="sold-out-badge">Sold Out</span>' : ''}
+            ${tagBadges ? `<div style="margin-top:.6rem;">${tagBadges}</div>` : ''}
+          </div>`;
+      }).join('');
+    }
+
     async function loadMenu() {
       const menuGrid  = document.getElementById('menu-grid');
       const orderGrid = document.getElementById('order-picker-grid');
       try {
         allDonuts = await fetch('/api/donuts').then(r => r.json());
 
-        // ── Display menu ──────────────────────────────────────────────────────
-        const visible = allDonuts.filter(d => d.available);
-        if (!visible.length) {
-          menuGrid.innerHTML = '<p style="color:#9a7050">No donuts available right now — check back soon!</p>';
-        } else {
-          menuGrid.innerHTML = visible.map(d => `
-            <div class="donut-card${d.quantity === 0 ? ' unavailable' : ''}">
-              <span class="emoji">${d.emoji}</span>
-              <h3>${d.name}</h3>
-              <p>${d.description}</p>
-              <span class="price-tag">$${Number(d.price).toFixed(2)}</span>
-              ${d.quantity === 0 ? '<span class="sold-out-badge">Sold Out</span>' : ''}
-            </div>`).join('');
-        }
+        // ── Display menu (with search + tag filters) ──────────────────────────
+        buildMenuFilters();
+        renderMenu();
 
         // ── Build order picker ────────────────────────────────────────────────
         const orderable = allDonuts.filter(d => d.available);

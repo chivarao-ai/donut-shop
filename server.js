@@ -346,11 +346,11 @@ app.get('/api/track/:token', async (req, res) => {
 
 app.post('/api/donuts', requireAuth, async (req, res) => {
   try {
-    const { name, description, price, emoji, quantity, low_stock_threshold } = req.body;
+    const { name, description, price, emoji, quantity, low_stock_threshold, tags } = req.body;
     if (!name || price == null) return res.status(400).json({ error: 'name and price are required' });
     const result = await db.execute({
-      sql:  'INSERT INTO donuts (name, description, price, emoji, quantity, low_stock_threshold) VALUES (?, ?, ?, ?, ?, ?)',
-      args: [name, description || '', Number(price), emoji || '🍩', Number(quantity) || 0, Number(low_stock_threshold) || 5],
+      sql:  'INSERT INTO donuts (name, description, price, emoji, quantity, low_stock_threshold, tags) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      args: [name, description || '', Number(price), emoji || '🍩', Number(quantity) || 0, Number(low_stock_threshold) || 5, tags || ''],
     });
     const row = await db.execute({ sql: 'SELECT * FROM donuts WHERE id = ?', args: [result.lastInsertRowid] });
     res.status(201).json(row.rows[0]);
@@ -359,11 +359,11 @@ app.post('/api/donuts', requireAuth, async (req, res) => {
 
 app.put('/api/donuts/:id', requireAuth, async (req, res) => {
   try {
-    const { name, description, price, emoji, available, quantity, low_stock_threshold } = req.body;
+    const { name, description, price, emoji, available, quantity, low_stock_threshold, tags } = req.body;
     if (!name || price == null) return res.status(400).json({ error: 'name and price are required' });
     const result = await db.execute({
-      sql:  'UPDATE donuts SET name=?, description=?, price=?, emoji=?, available=?, quantity=?, low_stock_threshold=? WHERE id=?',
-      args: [name, description || '', Number(price), emoji || '🍩', available ? 1 : 0, Number(quantity) || 0, Number(low_stock_threshold) || 5, req.params.id],
+      sql:  'UPDATE donuts SET name=?, description=?, price=?, emoji=?, available=?, quantity=?, low_stock_threshold=?, tags=? WHERE id=?',
+      args: [name, description || '', Number(price), emoji || '🍩', available ? 1 : 0, Number(quantity) || 0, Number(low_stock_threshold) || 5, tags || '', req.params.id],
     });
     if (!result.rowsAffected) return res.status(404).json({ error: 'Not found' });
     const row = await db.execute({ sql: 'SELECT * FROM donuts WHERE id = ?', args: [req.params.id] });
@@ -493,11 +493,11 @@ app.get('/api/food-items', async (req, res) => {
 
 app.post('/api/food-items', requireAuth, async (req, res) => {
   try {
-    const { name, description, price, emoji, quantity, low_stock_threshold } = req.body;
+    const { name, description, price, emoji, quantity, low_stock_threshold, tags } = req.body;
     if (!name || price == null) return res.status(400).json({ error: 'name and price are required' });
     const result = await db.execute({
-      sql:  'INSERT INTO food_items (name, description, price, emoji, quantity, low_stock_threshold) VALUES (?, ?, ?, ?, ?, ?)',
-      args: [name, description || '', Number(price), emoji || '🍽️', Number(quantity) || 0, Number(low_stock_threshold) || 5],
+      sql:  'INSERT INTO food_items (name, description, price, emoji, quantity, low_stock_threshold, tags) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      args: [name, description || '', Number(price), emoji || '🍽️', Number(quantity) || 0, Number(low_stock_threshold) || 5, tags || ''],
     });
     const row = await db.execute({ sql: 'SELECT * FROM food_items WHERE id = ?', args: [result.lastInsertRowid] });
     res.status(201).json(row.rows[0]);
@@ -506,11 +506,11 @@ app.post('/api/food-items', requireAuth, async (req, res) => {
 
 app.put('/api/food-items/:id', requireAuth, async (req, res) => {
   try {
-    const { name, description, price, emoji, available, quantity, low_stock_threshold } = req.body;
+    const { name, description, price, emoji, available, quantity, low_stock_threshold, tags } = req.body;
     if (!name || price == null) return res.status(400).json({ error: 'name and price are required' });
     const result = await db.execute({
-      sql:  'UPDATE food_items SET name=?, description=?, price=?, emoji=?, available=?, quantity=?, low_stock_threshold=? WHERE id=?',
-      args: [name, description || '', Number(price), emoji || '🍽️', available ? 1 : 0, Number(quantity) || 0, Number(low_stock_threshold) || 5, req.params.id],
+      sql:  'UPDATE food_items SET name=?, description=?, price=?, emoji=?, available=?, quantity=?, low_stock_threshold=?, tags=? WHERE id=?',
+      args: [name, description || '', Number(price), emoji || '🍽️', available ? 1 : 0, Number(quantity) || 0, Number(low_stock_threshold) || 5, tags || '', req.params.id],
     });
     if (!result.rowsAffected) return res.status(404).json({ error: 'Not found' });
     const row = await db.execute({ sql: 'SELECT * FROM food_items WHERE id = ?', args: [req.params.id] });

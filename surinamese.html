@@ -532,6 +532,13 @@
       <h2>Surinaams Menu</h2>
       <p>Traditionele smaken, met liefde en geloof bereid — elk gerecht is een zegen op je bord.</p>
     </div>
+
+    <div style="max-width:640px;margin:0 auto 2rem;text-align:center;">
+      <input type="text" id="menu-search" placeholder="🔍 Zoek gerechten…" oninput="renderMenu()"
+             style="width:100%;max-width:380px;padding:.7rem 1.1rem;border:2px solid #d8c9a8;border-radius:50px;font-size:.95rem;font-family:inherit;" />
+      <div id="menu-filters" style="margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap;justify-content:center;"></div>
+    </div>
+
     <div class="menu-grid" id="menu-grid">
       <p style="color:#9aaebc;font-size:1rem;font-style:italic;">Menu laden...</p>
     </div>
@@ -644,25 +651,54 @@
     let allItems = [];
     let quantities = {};
 
+    let activeTag = '';
+
+    function parseTags(d) {
+      return (d.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+    }
+
+    function buildMenuFilters() {
+      const wrap = document.getElementById('menu-filters');
+      const tags = [...new Set(allItems.filter(d => d.available).flatMap(parseTags))].sort();
+      if (!tags.length) { wrap.innerHTML = ''; return; }
+      const chip = (label, val) => `<button onclick="setTag('${val}')" style="padding:.35rem 1rem;border-radius:50px;border:2px solid var(--navy);cursor:pointer;font-size:.82rem;font-weight:600;font-family:inherit;background:${activeTag === val ? 'var(--navy)' : '#fff'};color:${activeTag === val ? '#fff' : 'var(--navy)'};">${label}</button>`;
+      wrap.innerHTML = chip('Alles', '') + tags.map(t => chip(t, t)).join('');
+    }
+
+    function setTag(t) { activeTag = t; buildMenuFilters(); renderMenu(); }
+
+    function renderMenu() {
+      const menuGrid = document.getElementById('menu-grid');
+      const q = (document.getElementById('menu-search').value || '').toLowerCase().trim();
+      let list = allItems.filter(d => d.available);
+      if (activeTag) list = list.filter(d => parseTags(d).includes(activeTag));
+      if (q) list = list.filter(d => (d.name + ' ' + (d.description || '')).toLowerCase().includes(q));
+      if (!list.length) {
+        menuGrid.innerHTML = '<p style="color:#9aaebc;font-style:italic;">Geen gerechten gevonden.</p>';
+        return;
+      }
+      menuGrid.innerHTML = list.map(d => {
+        const tagBadges = parseTags(d).map(t => `<span style="display:inline-block;background:#eef3f8;color:#1d3557;font-size:.7rem;font-weight:700;padding:.15rem .6rem;border-radius:50px;margin:.15rem .15rem 0;font-family:sans-serif;">${t}</span>`).join('');
+        return `
+          <div class="food-card${d.quantity === 0 ? ' unavailable' : ''}">
+            <span class="emoji">${d.emoji}</span>
+            <h3>${d.name}</h3>
+            <p>${d.description}</p>
+            <span class="price-tag">SRD ${Number(d.price).toFixed(2)}</span>
+            ${d.quantity === 0 ? '<span class="sold-out-badge">Uitverkocht</span>' : ''}
+            ${tagBadges ? `<div style="margin-top:.6rem;">${tagBadges}</div>` : ''}
+          </div>`;
+      }).join('');
+    }
+
     async function loadMenu() {
       const menuGrid  = document.getElementById('menu-grid');
       const orderGrid = document.getElementById('order-picker-grid');
       try {
         allItems = await fetch('/api/food-items').then(r => r.json());
 
-        const visible = allItems.filter(d => d.available);
-        if (!visible.length) {
-          menuGrid.innerHTML = '<p style="color:#9aaebc;font-style:italic;">Geen gerechten beschikbaar op dit moment — kom snel terug!</p>';
-        } else {
-          menuGrid.innerHTML = visible.map(d => `
-            <div class="food-card${d.quantity === 0 ? ' unavailable' : ''}">
-              <span class="emoji">${d.emoji}</span>
-              <h3>${d.name}</h3>
-              <p>${d.description}</p>
-              <span class="price-tag">SRD ${Number(d.price).toFixed(2)}</span>
-              ${d.quantity === 0 ? '<span class="sold-out-badge">Uitverkocht</span>' : ''}
-            </div>`).join('');
-        }
+        buildMenuFilters();
+        renderMenu();
 
         const orderable = allItems.filter(d => d.available);
         if (!orderable.length) {
