@@ -203,6 +203,7 @@
   </header>
 
   <div class="tab-bar">
+    <button class="tab-btn"        data-tab="dashboard"  onclick="showTab('dashboard')">Dashboard</button>
     <button class="tab-btn active" data-tab="inventory"  onclick="showTab('inventory')">Inventory</button>
     <button class="tab-btn"        data-tab="surinamese" onclick="showTab('surinamese')">Surinamese Food</button>
     <button class="tab-btn"        data-tab="orders"     onclick="showTab('orders')">Orders <span id="pending-badge" style="display:none;background:#f7567c;color:white;border-radius:50px;font-size:.72rem;padding:.1rem .5rem;margin-left:.3rem;font-weight:700"></span></button>
@@ -360,6 +361,24 @@
           <button class="btn btn-pink" onclick="saveSettings()">Save Settings</button>
           <button class="btn btn-ghost" onclick="testEmail()">Send Test Email</button>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD TAB -->
+<div id="tab-dashboard" class="tab-content">
+  <div class="main">
+    <div class="toolbar"><div><h2>Sales Dashboard</h2><p>Overview of orders and revenue across both shops.</p></div></div>
+    <div id="stat-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:1.5rem;"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;" id="dash-lower">
+      <div class="card" style="padding:1.2rem;">
+        <h3 style="color:var(--brown);margin-bottom:1rem;font-size:1rem;">Revenue — last 7 days</h3>
+        <div id="dash-chart" style="display:flex;align-items:flex-end;gap:.5rem;height:160px;"></div>
+      </div>
+      <div class="card" style="padding:1.2rem;">
+        <h3 style="color:var(--brown);margin-bottom:1rem;font-size:1rem;">Top sellers</h3>
+        <div id="dash-top">—</div>
       </div>
     </div>
   </div>
@@ -596,6 +615,45 @@
     document.getElementById(`tab-${name}`).classList.add('active');
     if (name === 'orders') loadOrders();
     if (name === 'reviews') loadReviews();
+    if (name === 'dashboard') loadStats();
+  }
+
+  // ── Dashboard ───────────────────────────────────────────────────────────────
+
+  async function loadStats() {
+    let s;
+    try { s = await api('GET', '/api/admin/stats'); }
+    catch { document.getElementById('stat-cards').innerHTML = '<p style="color:#9a7050">Could not load stats.</p>'; return; }
+
+    const card = (label, value, sub) => `
+      <div class="card" style="padding:1.1rem 1.2rem;">
+        <div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;color:#9a7050;">${label}</div>
+        <div style="font-size:1.6rem;font-weight:800;color:var(--brown);margin-top:.2rem;">${value}</div>
+        ${sub ? `<div style="font-size:.78rem;color:#9a7050;margin-top:.2rem;">${sub}</div>` : ''}
+      </div>`;
+    document.getElementById('stat-cards').innerHTML =
+      card('Total Revenue', '$' + s.revenue.toFixed(2), `🍩 $${s.byType.donut.toFixed(2)} · 🥘 $${s.byType.food.toFixed(2)}`) +
+      card('Orders', s.orderCount, `${s.pending} pending · ${s.handled} done`) +
+      card('Avg Order', '$' + s.avgOrder.toFixed(2)) +
+      card('Pending', s.pending, 'awaiting handling');
+
+    const max = Math.max(1, ...s.last7.map(d => d.revenue));
+    document.getElementById('dash-chart').innerHTML = s.last7.map(d => {
+      const h = Math.round((d.revenue / max) * 130);
+      const label = new Date(d.date + 'T00:00').toLocaleDateString(undefined, { weekday: 'short' });
+      return `<div style="flex:1;text-align:center;">
+        <div title="$${d.revenue.toFixed(2)}" style="background:var(--pink);border-radius:5px 5px 0 0;height:${h}px;min-height:2px;"></div>
+        <div style="font-size:.7rem;color:#9a7050;margin-top:.3rem;">${label}</div>
+        <div style="font-size:.68rem;color:#bba;">$${d.revenue.toFixed(0)}</div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('dash-top').innerHTML = s.topItems.length
+      ? s.topItems.map(t => `<div style="display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid #f5ece4;">
+          <span>${t.emoji} ${escapeHtmlA(t.name)}</span>
+          <span style="color:#9a7050;">${t.qty} sold · $${t.revenue.toFixed(2)}</span>
+        </div>`).join('')
+      : '<p style="color:#9a7050">No sales yet.</p>';
   }
 
   // ── Reviews moderation ──────────────────────────────────────────────────────

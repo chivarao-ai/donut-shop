@@ -700,6 +700,58 @@ app.post('/api/orders/:id/handle', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Admin dashboard stats ─────────────────────────────────────────────────────
+
+app.get('/api/admin/stats', requireAuth, async (req, res) => {
+  try {
+    const r = await db.execute('SELECT type, total, status, items_json, created_at FROM orders');
+    const orders = r.rows;
+
+    let revenue = 0, pending = 0, handled = 0;
+    const byType = { donut: 0, food: 0 };
+    const itemAgg = {};            // name -> { qty, revenue, emoji }
+    const daily = {};              // YYYY-MM-DD -> revenue
+
+    for (const o of orders) {
+      const total = Number(o.total) || 0;
+      revenue += total;
+      if (o.status === 'handled') handled++; else pending++;
+      byType[o.type] = (byType[o.type] || 0) + total;
+      const day = String(o.created_at).slice(0, 10);
+      daily[day] = (daily[day] || 0) + total;
+      try {
+        for (const it of JSON.parse(o.items_json)) {
+          const a = itemAgg[it.name] || { qty: 0, revenue: 0, emoji: it.emoji };
+          a.qty     += Number(it.quantity) || 0;
+          a.revenue += (Number(it.price) || 0) * (Number(it.quantity) || 0);
+          itemAgg[it.name] = a;
+        }
+      } catch {}
+    }
+
+    // Last 7 calendar days (including today), oldest first.
+    const last7 = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+      last7.push({ date: d, revenue: Math.round((daily[d] || 0) * 100) / 100 });
+    }
+
+    const topItems = Object.entries(itemAgg)
+      .map(([name, a]) => ({ name, emoji: a.emoji, qty: a.qty, revenue: Math.round(a.revenue * 100) / 100 }))
+      .sort((a, b) => b.qty - a.qty)
+      .slice(0, 5);
+
+    res.json({
+      revenue:    Math.round(revenue * 100) / 100,
+      orderCount: orders.length,
+      pending, handled,
+      avgOrder:   orders.length ? Math.round((revenue / orders.length) * 100) / 100 : 0,
+      byType: { donut: Math.round((byType.donut || 0) * 100) / 100, food: Math.round((byType.food || 0) * 100) / 100 },
+      last7, topItems,
+    });
+  } catch (e) { res.status(500).json({ error: 'Could not load stats' }); }
+});
+
 // ── Reviews ───────────────────────────────────────────────────────────────────
 
 // Average rating + count per item for a product type (public).
