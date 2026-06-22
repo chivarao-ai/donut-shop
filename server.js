@@ -674,6 +674,26 @@ app.get('/api/orders', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.get('/api/admin/orders.csv', requireAuth, async (req, res) => {
+  try {
+    const r = await db.execute('SELECT * FROM orders ORDER BY created_at DESC');
+    const cell = v => {
+      const s = String(v == null ? '' : v).replace(/"/g, '""');
+      return /[",\n]/.test(s) ? `"${s}"` : s;
+    };
+    const header = ['id', 'date', 'type', 'status', 'customer_name', 'customer_email', 'items', 'total', 'notes'];
+    const lines = [header.join(',')];
+    for (const o of r.rows) {
+      let items = '';
+      try { items = JSON.parse(o.items_json).map(i => `${i.quantity}x ${i.name}`).join('; '); } catch {}
+      lines.push([o.id, o.created_at, o.type, o.status, o.customer_name, o.customer_email, items, Number(o.total).toFixed(2), o.notes].map(cell).join(','));
+    }
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="orders-${new Date().toISOString().slice(0,10)}.csv"`);
+    res.send(lines.join('\r\n'));
+  } catch (e) { res.status(500).json({ error: 'Could not export' }); }
+});
+
 app.post('/api/orders/:id/handle', requireAuth, async (req, res) => {
   try {
     const r = await db.execute({ sql: 'SELECT * FROM orders WHERE id = ?', args: [req.params.id] });
