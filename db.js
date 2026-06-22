@@ -67,6 +67,9 @@ async function init() {
   try { await db.execute('ALTER TABLE donuts ADD COLUMN quantity INTEGER DEFAULT 0'); } catch {}
   try { await db.execute('ALTER TABLE donuts ADD COLUMN low_stock_threshold INTEGER DEFAULT 5'); } catch {}
   try { await db.execute('ALTER TABLE orders ADD COLUMN customer_id INTEGER'); } catch {}
+  try { await db.execute('ALTER TABLE orders ADD COLUMN track_token TEXT'); } catch {}
+  try { await db.execute('ALTER TABLE customers ADD COLUMN reset_token TEXT'); } catch {}
+  try { await db.execute('ALTER TABLE customers ADD COLUMN reset_expires TEXT'); } catch {}
 
   // Default admin
   const adminRow = await db.execute('SELECT id FROM admin WHERE id = 1');

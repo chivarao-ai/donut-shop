@@ -3,8 +3,14 @@ const session    = require('express-session');
 const bcrypt     = require('bcryptjs');
 const helmet     = require('helmet');
 const rateLimit  = require('express-rate-limit');
+const crypto     = require('crypto');
 const path       = require('path');
 const { db, init } = require('./db');
+
+// Absolute base URL of the current request (honours Render's proxy headers).
+function siteUrl(req) {
+  return process.env.SITE_URL || `${req.protocol}://${req.get('host')}`;
+}
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -174,6 +180,52 @@ app.post('/api/customer/logout', (req, res) => {
 
 app.get('/api/customer/me', (req, res) => {
   res.json({ customer: req.session.customer || null });
+});
+
+app.post('/api/customer/forgot', loginLimiter, async (req, res) => {
+  try {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    // Always respond the same way so the endpoint can't be used to probe emails.
+    if (isEmail(email)) {
+      const result = await db.execute({ sql: 'SELECT * FROM customers WHERE email = ?', args: [email] });
+      const customer = result.rows[0];
+      if (customer) {
+        const token   = crypto.randomBytes(32).toString('hex');
+        const expires = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
+        await db.execute({ sql: 'UPDATE customers SET reset_token = ?, reset_expires = ? WHERE id = ?', args: [token, expires, customer.id] });
+        const link = `${siteUrl(req)}/reset-password.html?token=${token}`;
+        sendEmail(
+          'Reset your password',
+          `<div style="font-family:sans-serif;max-width:520px;margin:auto">
+            <h2 style="color:#f7567c">Password reset requested</h2>
+            <p>Hi ${esc(customer.name)}, we received a request to reset your password.</p>
+            <p><a href="${link}" style="display:inline-block;background:#f7567c;color:#fff;padding:.7rem 1.4rem;border-radius:8px;text-decoration:none">Reset my password</a></p>
+            <p style="color:#9a7050;font-size:.85rem">This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>
+          </div>`,
+          customer.email
+        ).catch(() => {});
+      }
+    }
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Request failed' }); }
+});
+
+app.post('/api/customer/reset', loginLimiter, async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token) return res.status(400).json({ error: 'Invalid reset link' });
+    if (!password || String(password).length < 8)
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    const result = await db.execute({ sql: 'SELECT * FROM customers WHERE reset_token = ?', args: [String(token)] });
+    const customer = result.rows[0];
+    if (!customer || !customer.reset_expires || new Date(customer.reset_expires) < new Date())
+      return res.status(400).json({ error: 'This reset link is invalid or has expired' });
+    await db.execute({
+      sql:  'UPDATE customers SET password_hash = ?, reset_token = NULL, reset_expires = NULL WHERE id = ?',
+      args: [bcrypt.hashSync(String(password), 10), customer.id],
+    });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Reset failed' }); }
 });
 
 app.get('/api/customer/orders', requireCustomer, async (req, res) => {

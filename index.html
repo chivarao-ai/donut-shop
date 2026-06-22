@@ -553,6 +553,7 @@
           <input type="email"    id="login-email" placeholder="Email" style="width:100%;padding:.75rem 1rem;border:2px solid #f0d0dc;border-radius:10px;margin-bottom:.8rem;font-family:inherit;" />
           <input type="password" id="login-pass"  placeholder="Password" style="width:100%;padding:.75rem 1rem;border:2px solid #f0d0dc;border-radius:10px;margin-bottom:.8rem;font-family:inherit;" />
           <button class="btn btn-pink" style="width:100%" onclick="doLogin()">Log In</button>
+          <p style="text-align:center;margin-top:.8rem;font-size:.85rem;"><a href="#" onclick="doForgot();return false;" style="color:var(--pink);">Forgot your password?</a></p>
         </div>
         <div id="auth-register" style="display:none;">
           <input type="text"     id="reg-name"  placeholder="Your Name" style="width:100%;padding:.75rem 1rem;border:2px solid #f0d0dc;border-radius:10px;margin-bottom:.8rem;font-family:inherit;" />
@@ -899,6 +900,7 @@
     }
     function showAccountError(msg) {
       const el = document.getElementById('account-error');
+      el.style.color = 'var(--dark-pink)';
       el.textContent = msg; el.style.display = 'block';
     }
     function hideAccountError() { document.getElementById('account-error').style.display = 'none'; }
@@ -935,6 +937,18 @@
       currentCustomer = null;
       await loadCustomer();
       renderAccount();
+    }
+    async function doForgot() {
+      const email = document.getElementById('login-email').value.trim();
+      if (!email) return showAccountError('Enter your email above, then click "Forgot your password?"');
+      await fetch('/api/customer/forgot', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const el = document.getElementById('account-error');
+      el.style.color = 'var(--green, #28a745)';
+      el.textContent = 'If an account exists for that email, a reset link is on its way.';
+      el.style.display = 'block';
     }
     async function loadOrderHistory() {
       const el = document.getElementById('order-history');

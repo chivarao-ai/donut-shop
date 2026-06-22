@@ -477,6 +477,7 @@
           <input type="email"    id="login-email" placeholder="E-mailadres" style="width:100%;padding:.75rem 1rem;border:2px solid #d8c9a8;border-radius:8px;margin-bottom:.8rem;font-family:inherit;" />
           <input type="password" id="login-pass"  placeholder="Wachtwoord" style="width:100%;padding:.75rem 1rem;border:2px solid #d8c9a8;border-radius:8px;margin-bottom:.8rem;font-family:inherit;" />
           <button class="btn" style="width:100%" onclick="doLogin()">Inloggen</button>
+          <p style="text-align:center;margin-top:.8rem;font-size:.85rem;"><a href="#" onclick="doForgot();return false;" style="color:var(--navy);">Wachtwoord vergeten?</a></p>
         </div>
         <div id="auth-register" style="display:none;">
           <input type="text"     id="reg-name"  placeholder="Uw naam" style="width:100%;padding:.75rem 1rem;border:2px solid #d8c9a8;border-radius:8px;margin-bottom:.8rem;font-family:inherit;" />
@@ -833,6 +834,7 @@
     }
     function showAccountError(msg) {
       const el = document.getElementById('account-error');
+      el.style.color = 'var(--red)';
       el.textContent = msg; el.style.display = 'block';
     }
     function hideAccountError() { document.getElementById('account-error').style.display = 'none'; }
@@ -869,6 +871,18 @@
       currentCustomer = null;
       await loadCustomer();
       renderAccount();
+    }
+    async function doForgot() {
+      const email = document.getElementById('login-email').value.trim();
+      if (!email) return showAccountError('Vul hierboven uw e-mailadres in en klik dan op "Wachtwoord vergeten?"');
+      await fetch('/api/customer/forgot', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const el = document.getElementById('account-error');
+      el.style.color = '#2d6a4f';
+      el.textContent = 'Als er een account bestaat voor dit e-mailadres, is er een herstel-link onderweg.';
+      el.style.display = 'block';
     }
     async function loadOrderHistory() {
       const el = document.getElementById('order-history');
