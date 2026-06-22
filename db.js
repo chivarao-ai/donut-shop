@@ -19,6 +19,17 @@ async function init() {
       low_stock_threshold INTEGER DEFAULT 5
     );
 
+    CREATE TABLE IF NOT EXISTS food_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT,
+      price REAL NOT NULL,
+      emoji TEXT DEFAULT '🍽️',
+      available INTEGER DEFAULT 1,
+      quantity INTEGER DEFAULT 0,
+      low_stock_threshold INTEGER DEFAULT 5
+    );
+
     CREATE TABLE IF NOT EXISTS admin (
       id INTEGER PRIMARY KEY,
       username TEXT NOT NULL,
@@ -28,6 +39,19 @@ async function init() {
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL DEFAULT ''
+    );
+
+    CREATE TABLE IF NOT EXISTS orders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL DEFAULT 'donut',
+      customer_name TEXT NOT NULL,
+      customer_email TEXT NOT NULL,
+      notes TEXT DEFAULT '',
+      items_json TEXT NOT NULL,
+      total REAL NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TEXT NOT NULL,
+      handled_at TEXT
     );
   `);
 
@@ -51,6 +75,29 @@ async function init() {
   ];
   for (const [k, v] of settingDefaults) {
     await db.execute({ sql: 'INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', args: [k, v] });
+  }
+
+  // Seed Surinamese food items if empty
+  const foodCount = await db.execute('SELECT COUNT(*) as c FROM food_items');
+  if (Number(foodCount.rows[0].c) === 0) {
+    const foodItems = [
+      ['Roti met Kip Kerrie',    'Flaky roti flatbread served with tender chicken curry and achar.',                   12.50, '🥘', 20, 4],
+      ['Pom',                    'Oven-baked Surinamese casserole with chicken, pomtajer root and citrus.',            14.00, '🍖', 15, 4],
+      ['Moksi Alesi',            'Fragrant mixed rice with salted fish, peanuts and seasonal vegetables.',             10.00, '🍚', 20, 5],
+      ['Saoto Soep',             'Traditional chicken soup with bean sprouts, vermicelli, sambal and fried shallots.',  9.50, '🍜', 25, 5],
+      ['Bara',                   'Crispy fried split pea fritters, served warm with tamarind chutney.',                 4.50, '🫓', 40, 8],
+      ['Baka Bana',              'Golden fried sweet plantain with creamy peanut dipping sauce.',                       5.50, '🍌', 30, 6],
+      ['Pastei',                 'Flaky hand pie filled with seasoned chicken, vegetables and herbs.',                  7.00, '🥧', 20, 5],
+      ['Bruine Bonen',           'Slow-cooked brown beans on white rice, served with crispy fried plantain.',          11.00, '🍛', 20, 5],
+      ['Gevulde Boulanger',      'Stuffed eggplant filled with spiced ground beef and herbs, baked until tender.',     12.00, '🍆', 12, 3],
+      ['Bojo Cake',              'Sweet coconut-cassava cake with a hint of vanilla — a classic Surinamese dessert.',   5.00, '🍰', 25, 5],
+    ];
+    for (const [name, description, price, emoji, quantity, low_stock_threshold] of foodItems) {
+      await db.execute({
+        sql:  'INSERT INTO food_items (name, description, price, emoji, quantity, low_stock_threshold) VALUES (?, ?, ?, ?, ?, ?)',
+        args: [name, description, price, emoji, quantity, low_stock_threshold],
+      });
+    }
   }
 
   // Seed menu if empty

@@ -202,8 +202,10 @@
   </header>
 
   <div class="tab-bar">
-    <button class="tab-btn active" onclick="showTab('inventory')">Inventory</button>
-    <button class="tab-btn"        onclick="showTab('settings')">Email Settings</button>
+    <button class="tab-btn active" data-tab="inventory"  onclick="showTab('inventory')">Inventory</button>
+    <button class="tab-btn"        data-tab="surinamese" onclick="showTab('surinamese')">Surinamese Food</button>
+    <button class="tab-btn"        data-tab="orders"     onclick="showTab('orders')">Orders <span id="pending-badge" style="display:none;background:#f7567c;color:white;border-radius:50px;font-size:.72rem;padding:.1rem .5rem;margin-left:.3rem;font-weight:700"></span></button>
+    <button class="tab-btn"        data-tab="settings"   onclick="showTab('settings')">Email Settings</button>
   </div>
 
   <!-- ── INVENTORY TAB ── -->
@@ -231,6 +233,73 @@
           </thead>
           <tbody id="donut-table-body">
             <tr><td colspan="6"><div class="empty-state"><span>🍩</span>Loading...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SURINAMESE FOOD TAB ── -->
+  <div id="tab-surinamese" class="tab-content">
+    <div class="main">
+      <div id="food-low-stock-banner" class="low-stock-banner"></div>
+      <div class="toolbar">
+        <div>
+          <h2>Surinamese Food</h2>
+          <p id="food-inventory-summary"></p>
+        </div>
+        <button class="btn btn-pink" onclick="openAddFoodModal()">+ Add Item</button>
+      </div>
+      <div class="card">
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th>Name</th>
+              <th>Price</th>
+              <th>Stock</th>
+              <th>Visibility</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="food-table-body">
+            <tr><td colspan="6"><div class="empty-state"><span>🥘</span>Loading...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ORDERS TAB ── -->
+  <div id="tab-orders" class="tab-content">
+    <div class="main">
+      <div class="toolbar">
+        <div>
+          <h2>Orders</h2>
+          <p id="orders-summary"></p>
+        </div>
+        <div style="display:flex;gap:.6rem;align-items:center">
+          <button class="btn btn-sm btn-ghost"   id="filter-all"     onclick="setOrderFilter('all')">All</button>
+          <button class="btn btn-sm btn-orange"  id="filter-pending" onclick="setOrderFilter('pending')">Pending</button>
+          <button class="btn btn-sm btn-ghost"   id="filter-handled" onclick="setOrderFilter('handled')">Handled</button>
+          <button class="btn btn-sm btn-ghost"   onclick="loadOrders()" style="margin-left:.4rem">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Customer</th>
+              <th>Type</th>
+              <th>Items</th>
+              <th>Total</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="orders-table-body">
+            <tr><td colspan="7"><div class="empty-state"><span>📋</span>Loading orders...</div></td></tr>
           </tbody>
         </table>
       </div>
@@ -382,6 +451,70 @@
   </div>
 </div>
 
+<!-- FOOD ADD / EDIT MODAL -->
+<div class="overlay" id="food-modal">
+  <div class="modal">
+    <h2 id="food-modal-title">Add Food Item</h2>
+    <input type="hidden" id="food-modal-id" />
+    <div class="form-row">
+      <div class="form-group" style="flex:0 0 84px">
+        <label>Emoji</label>
+        <input type="text" id="food-modal-emoji" value="🍽️" maxlength="4" />
+      </div>
+      <div class="form-group" style="flex:1">
+        <label>Name *</label>
+        <input type="text" id="food-modal-name" placeholder="e.g. Roti met Kip Kerrie" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="food-modal-desc" placeholder="Short description shown on the menu"></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Price ($) *</label>
+        <input type="number" id="food-modal-price" step="0.50" min="0" placeholder="12.50" />
+      </div>
+      <div class="form-group">
+        <label>Availability</label>
+        <select id="food-modal-available">
+          <option value="1">Visible on menu</option>
+          <option value="0">Hidden (Sold Out)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Quantity in Stock</label>
+        <input type="number" id="food-modal-quantity" min="0" placeholder="0" />
+      </div>
+      <div class="form-group">
+        <label>Low Stock Threshold</label>
+        <input type="number" id="food-modal-threshold" min="0" placeholder="5" />
+        <div class="form-hint">Email alert fires when stock ≤ this number after an order.</div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('food-modal')">Cancel</button>
+      <button class="btn btn-pink"  onclick="saveFoodItem()">Save Item</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM DELETE FOOD -->
+<div class="overlay" id="food-delete-modal">
+  <div class="modal" style="max-width:380px">
+    <h2>Delete Item?</h2>
+    <p style="color:#9a7050;margin-bottom:1.5rem">
+      This will permanently remove <strong id="food-delete-name"></strong> from the menu. This cannot be undone.
+    </p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('food-delete-modal')">Cancel</button>
+      <button class="btn btn-red"   onclick="confirmDeleteFood()">Yes, Delete</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -422,7 +555,9 @@
     document.getElementById('admin-shell').style.display  = 'block';
     document.getElementById('admin-user').textContent = `👤 ${admin.username}`;
     loadDonuts();
+    loadFoodItems();
     loadSettings();
+    loadOrders();
   }
 
   document.getElementById('password').addEventListener('keydown', e => {
@@ -432,11 +567,12 @@
   // ── Tabs ────────────────────────────────────────────────────────────────────
 
   function showTab(name) {
-    document.querySelectorAll('.tab-btn').forEach((b, i) => {
-      b.classList.toggle('active', ['inventory','settings'][i] === name);
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.tab === name);
     });
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.getElementById(`tab-${name}`).classList.add('active');
+    if (name === 'orders') loadOrders();
   }
 
   // ── Donuts ──────────────────────────────────────────────────────────────────
@@ -661,6 +797,393 @@
   function esc(str) {
     return String(str)
       .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Surinamese Food ─────────────────────────────────────────────────────────
+
+  let foodItems = [];
+  let foodDeleteTargetId = null;
+
+  async function loadFoodItems() {
+    foodItems = await api('GET', '/api/food-items');
+    renderFoodTable();
+  }
+
+  function renderFoodTable() {
+    const tbody    = document.getElementById('food-table-body');
+    const available  = foodItems.filter(d => d.available).length;
+    const lowStock   = foodItems.filter(d => d.quantity <= d.low_stock_threshold && d.quantity > 0);
+    const outOfStock = foodItems.filter(d => d.quantity === 0);
+
+    document.getElementById('food-inventory-summary').textContent =
+      `${foodItems.length} items — ${available} visible, ${foodItems.length - available} hidden`;
+
+    const banner = document.getElementById('food-low-stock-banner');
+    const alerts = [...outOfStock.map(d => `${d.emoji} ${d.name} (out of stock)`),
+                    ...lowStock.map(d => `${d.emoji} ${d.name} (${d.quantity} left)`)];
+    if (alerts.length) {
+      banner.style.display = 'block';
+      banner.innerHTML = `<b>⚠️ Attention needed:</b> ${alerts.join(' &nbsp;·&nbsp; ')}`;
+    } else {
+      banner.style.display = 'none';
+    }
+
+    if (!foodItems.length) {
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><span>🥘</span>No items yet. Add one!</div></td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = foodItems.map(d => `
+      <tr>
+        <td class="donut-emoji">${d.emoji}</td>
+        <td>
+          <div class="donut-name">${esc(d.name)}</div>
+          <div class="donut-desc">${esc(d.description)}</div>
+        </td>
+        <td class="donut-price">$${Number(d.price).toFixed(2)}</td>
+        <td>${stockBadge(d)}<div style="font-size:.75rem;color:#9a7050;margin-top:.3rem">threshold: ${d.low_stock_threshold}</div></td>
+        <td><span class="badge ${d.available ? 'badge-green' : 'badge-gray'}">${d.available ? 'Visible' : 'Hidden'}</span></td>
+        <td>
+          <div class="actions">
+            <button class="btn btn-sm ${d.available ? 'btn-ghost' : 'btn-green'}" onclick="toggleFoodAvailable(${d.id})">
+              ${d.available ? 'Hide' : 'Show'}
+            </button>
+            <button class="btn btn-sm btn-outline" onclick="openEditFoodModal(${d.id})">Edit</button>
+            <button class="btn btn-sm btn-red"     onclick="openDeleteFoodModal(${d.id})">Delete</button>
+          </div>
+        </td>
+      </tr>`).join('');
+  }
+
+  async function toggleFoodAvailable(id) {
+    const d = foodItems.find(x => x.id === id);
+    await api('PUT', `/api/food-items/${id}`, { ...d, available: !d.available });
+    toast(`${d.name} is now ${d.available ? 'hidden' : 'visible'}`, 'success');
+    loadFoodItems();
+  }
+
+  function openAddFoodModal() {
+    document.getElementById('food-modal-title').textContent    = 'Add Food Item';
+    document.getElementById('food-modal-id').value            = '';
+    document.getElementById('food-modal-emoji').value         = '🍽️';
+    document.getElementById('food-modal-name').value          = '';
+    document.getElementById('food-modal-desc').value          = '';
+    document.getElementById('food-modal-price').value         = '';
+    document.getElementById('food-modal-available').value     = '1';
+    document.getElementById('food-modal-quantity').value      = '';
+    document.getElementById('food-modal-threshold').value     = '5';
+    openModal('food-modal');
+  }
+
+  function openEditFoodModal(id) {
+    const d = foodItems.find(x => x.id === id);
+    document.getElementById('food-modal-title').textContent    = 'Edit Food Item';
+    document.getElementById('food-modal-id').value            = d.id;
+    document.getElementById('food-modal-emoji').value         = d.emoji;
+    document.getElementById('food-modal-name').value          = d.name;
+    document.getElementById('food-modal-desc').value          = d.description;
+    document.getElementById('food-modal-price').value         = d.price;
+    document.getElementById('food-modal-available').value     = d.available ? '1' : '0';
+    document.getElementById('food-modal-quantity').value      = d.quantity;
+    document.getElementById('food-modal-threshold').value     = d.low_stock_threshold;
+    openModal('food-modal');
+  }
+
+  async function saveFoodItem() {
+    const id = document.getElementById('food-modal-id').value;
+    const payload = {
+      name:                document.getElementById('food-modal-name').value.trim(),
+      description:         document.getElementById('food-modal-desc').value.trim(),
+      price:               parseFloat(document.getElementById('food-modal-price').value),
+      emoji:               document.getElementById('food-modal-emoji').value.trim() || '🍽️',
+      available:           document.getElementById('food-modal-available').value === '1',
+      quantity:            parseInt(document.getElementById('food-modal-quantity').value) || 0,
+      low_stock_threshold: parseInt(document.getElementById('food-modal-threshold').value) || 5,
+    };
+    if (!payload.name || isNaN(payload.price)) { toast('Name and price are required', 'error'); return; }
+    if (id) {
+      await api('PUT', `/api/food-items/${id}`, payload);
+      toast('Item updated!', 'success');
+    } else {
+      await api('POST', '/api/food-items', payload);
+      toast('Item added!', 'success');
+    }
+    closeModal('food-modal');
+    loadFoodItems();
+  }
+
+  function openDeleteFoodModal(id) {
+    foodDeleteTargetId = id;
+    document.getElementById('food-delete-name').textContent = foodItems.find(x => x.id === id).name;
+    openModal('food-delete-modal');
+  }
+
+  async function confirmDeleteFood() {
+    const d = foodItems.find(x => x.id === foodDeleteTargetId);
+    await api('DELETE', `/api/food-items/${foodDeleteTargetId}`);
+    toast(`${d.name} deleted`, 'success');
+    closeModal('food-delete-modal');
+    loadFoodItems();
+  }
+
+  // ── Orders ──────────────────────────────────────────────────────────────────
+
+  let allOrders = [];
+  let orderFilter = 'all';
+
+  async function loadOrders() {
+    allOrders = await api('GET', '/api/orders');
+    updatePendingBadge();
+    renderOrders();
+  }
+
+  function setOrderFilter(f) {
+    orderFilter = f;
+    ['all','pending','handled'].forEach(name => {
+      const btn = document.getElementById(`filter-${name}`);
+      btn.className = `btn btn-sm ${name === f ? (name === 'pending' ? 'btn-orange' : name === 'handled' ? 'btn-green' : 'btn-pink') : 'btn-ghost'}`;
+    });
+    renderOrders();
+  }
+
+  function updatePendingBadge() {
+    const count = allOrders.filter(o => o.status === 'pending').length;
+    const badge = document.getElementById('pending-badge');
+    if (count > 0) { badge.textContent = count; badge.style.display = 'inline'; }
+    else           { badge.style.display = 'none'; }
+  }
+
+  function formatOrderTime(iso) {
+    const d = new Date(iso);
+    const now = new Date();
+    const todayStr = now.toDateString();
+    const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
+    const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (d.toDateString() === todayStr) return `Today<br><small style="color:#9a7050">${time}</small>`;
+    if (d.toDateString() === yesterday.toDateString()) return `Yesterday<br><small style="color:#9a7050">${time}</small>`;
+    return `${d.toLocaleDateString([], { month:'short', day:'numeric' })}<br><small style="color:#9a7050">${time}</small>`;
+  }
+
+  function renderOrders() {
+    const tbody = document.getElementById('orders-table-body');
+    const filtered = orderFilter === 'all' ? allOrders : allOrders.filter(o => o.status === orderFilter);
+    const pending = allOrders.filter(o => o.status === 'pending').length;
+
+    document.getElementById('orders-summary').textContent =
+      `${allOrders.length} total — ${pending} pending, ${allOrders.length - pending} handled`;
+
+    if (!filtered.length) {
+      const msg = orderFilter === 'pending' ? 'No pending orders — all caught up!' : 'No orders yet.';
+      tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><span>📋</span>${msg}</div></td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(o => {
+      const items = JSON.parse(o.items_json);
+      const itemsList = items.map(i => `${i.emoji} ${esc(i.name)} ×${i.quantity}`).join('<br>');
+      const typeLabel = o.type === 'food'
+        ? '<span class="badge" style="background:#e8f1f8;color:#1d3557">🥘 Surinamese</span>'
+        : '<span class="badge badge-orange">🍩 Donuts</span>';
+      const statusBadge = o.status === 'pending'
+        ? '<span class="badge badge-orange">Pending</span>'
+        : '<span class="badge badge-green">Handled</span>';
+      const action = o.status === 'pending'
+        ? `<div class="actions"><button class="btn btn-sm btn-green" onclick="handleOrder(${o.id})">✓ Mark Handled</button><button class="btn btn-sm btn-ghost" onclick="printReceipt(${o.id})">🖨 Print</button></div>`
+        : `<div class="actions"><div style="font-size:.78rem;color:#9a7050;margin-bottom:.3rem">${o.handled_at ? formatOrderTime(o.handled_at) : '—'}</div><button class="btn btn-sm btn-ghost" onclick="printReceipt(${o.id})">🖨 Print</button></div>`;
+
+      return `<tr>
+        <td style="white-space:nowrap;font-size:.85rem">${formatOrderTime(o.created_at)}</td>
+        <td>
+          <div class="donut-name">${esc(o.customer_name)}</div>
+          <div class="donut-desc">${esc(o.customer_email)}</div>
+          ${o.notes ? `<div class="donut-desc" style="font-style:italic">💬 ${esc(o.notes)}</div>` : ''}
+        </td>
+        <td>${typeLabel}</td>
+        <td style="font-size:.82rem;line-height:1.7">${itemsList}</td>
+        <td class="donut-price">$${Number(o.total).toFixed(2)}</td>
+        <td>${statusBadge}</td>
+        <td>${action}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function handleOrder(id) {
+    const btn = event.target;
+    btn.disabled = true; btn.textContent = 'Sending…';
+    const res = await fetch(`/api/orders/${id}/handle`, { method: 'POST' });
+    if (res.ok) {
+      toast('Order marked as handled — customer notified by email!', 'success');
+      loadOrders();
+    } else {
+      const { error } = await res.json();
+      toast(error || 'Failed to handle order', 'error');
+      btn.disabled = false; btn.textContent = '✓ Mark Handled';
+    }
+  }
+
+  // ── Print Receipt ───────────────────────────────────────────────────────────
+
+  function printReceipt(id) {
+    const o = allOrders.find(x => x.id === id);
+    if (!o) return;
+    const items = JSON.parse(o.items_json);
+    const isFood = o.type === 'food';
+
+    const itemRows = items.map(i => `
+      <tr>
+        <td>${i.emoji} ${i.name}</td>
+        <td class="center">×${i.quantity}</td>
+        <td class="right">$${(i.price * i.quantity).toFixed(2)}</td>
+      </tr>`).join('');
+
+    const placedDate = new Date(o.created_at).toLocaleString([], {
+      year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit'
+    });
+    const handledDate = o.handled_at
+      ? new Date(o.handled_at).toLocaleString([], { year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' })
+      : null;
+
+    const statusLabel = o.status === 'handled' ? 'Handled' : 'Pending';
+    const statusColor = o.status === 'handled' ? '#155724' : '#856404';
+    const statusBg    = o.status === 'handled' ? '#d4edda' : '#fff3cd';
+
+    const header = isFood
+      ? `<div class="receipt-header food-header">
+           <div class="header-cross">✝</div>
+           <h1>Zondagschool Keuken</h1>
+           <p>Surinaamse Keuken — Paramaribo</p>
+         </div>`
+      : `<div class="receipt-header donut-header">
+           <div class="header-emoji">🍩</div>
+           <h1>Glazed &amp; Amazed</h1>
+           <p>123 Sprinkle Lane, Bakerville, CA 90210</p>
+         </div>`;
+
+    const footer = isFood
+      ? `<p style="font-style:italic;margin-bottom:.3rem">"Proef en zie dat de HEERE goed is." — Psalm 34:9</p>
+         <p>Zondagschool Keuken &nbsp;·&nbsp; (597) 812-3456 &nbsp;·&nbsp; info@zondagschoolkeuken.sr</p>`
+      : `<p>Glazed &amp; Amazed &nbsp;·&nbsp; (555) 867-5309 &nbsp;·&nbsp; 123 Sprinkle Lane, Bakerville CA</p>
+         <p style="margin-top:.3rem">Made fresh daily — thank you for your order!</p>`;
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Receipt #${o.id}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Segoe UI',sans-serif; background:white; color:#222; }
+  .page { max-width:560px; margin:auto; padding:2rem; }
+
+  .receipt-header { border-radius:10px; padding:1.6rem 2rem; text-align:center; margin-bottom:2rem; color:white; }
+  .donut-header   { background:#f7567c; }
+  .food-header    { background:#1d3557; }
+  .header-emoji   { font-size:2.8rem; line-height:1; margin-bottom:.4rem; }
+  .header-cross   { font-size:2.2rem; line-height:1; margin-bottom:.4rem; opacity:.85; }
+  .receipt-header h1 { font-size:1.7rem; font-weight:800; letter-spacing:-.3px; }
+  .receipt-header p  { font-size:.85rem; opacity:.82; margin-top:.3rem; }
+
+  .receipt-title { text-align:center; margin-bottom:1.8rem; }
+  .receipt-title h2 { font-size:1rem; font-weight:700; text-transform:uppercase; letter-spacing:2px; color:#555; }
+  .receipt-title .order-num { font-size:2rem; font-weight:900; color:#222; margin:.2rem 0; }
+  .receipt-title .status-pill {
+    display:inline-block; padding:.25rem .9rem; border-radius:50px;
+    font-size:.8rem; font-weight:700;
+    background:${statusBg}; color:${statusColor};
+  }
+
+  .meta-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.8rem; }
+  .meta-block label { display:block; font-size:.72rem; text-transform:uppercase; letter-spacing:1px; color:#999; margin-bottom:.25rem; }
+  .meta-block span  { font-size:.92rem; color:#222; line-height:1.5; }
+
+  .divider { border:none; border-top:1px dashed #ddd; margin:1.5rem 0; }
+
+  table { width:100%; border-collapse:collapse; margin-bottom:1.5rem; }
+  thead tr { background:#f7f7f7; }
+  th { padding:.6rem .8rem; font-size:.75rem; text-transform:uppercase; letter-spacing:.5px; color:#888; text-align:left; }
+  td { padding:.65rem .8rem; border-bottom:1px solid #f3f3f3; font-size:.92rem; }
+  td.center { text-align:center; }
+  td.right  { text-align:right; }
+  th.right  { text-align:right; }
+  th.center { text-align:center; }
+
+  .total-row td { border-bottom:none; border-top:2px solid #222; font-weight:800; font-size:1.05rem; padding-top:.8rem; }
+
+  .receipt-footer { text-align:center; font-size:.8rem; color:#aaa; margin-top:1.8rem; padding-top:1rem; border-top:1px dashed #ddd; line-height:1.7; }
+
+  @media print {
+    body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .page { padding:0; }
+    @page { margin:1.5cm; size:A5; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  ${header}
+
+  <div class="receipt-title">
+    <h2>Order Receipt</h2>
+    <div class="order-num">#${o.id}</div>
+    <span class="status-pill">${statusLabel}</span>
+  </div>
+
+  <div class="meta-grid">
+    <div class="meta-block">
+      <label>Customer</label>
+      <span>${o.customer_name}</span>
+    </div>
+    <div class="meta-block">
+      <label>Email</label>
+      <span>${o.customer_email}</span>
+    </div>
+    <div class="meta-block">
+      <label>Placed</label>
+      <span>${placedDate}</span>
+    </div>
+    <div class="meta-block">
+      <label>Handled</label>
+      <span>${handledDate || '—'}</span>
+    </div>
+    ${o.notes ? `<div class="meta-block" style="grid-column:1/-1">
+      <label>Notes</label>
+      <span>${o.notes}</span>
+    </div>` : ''}
+  </div>
+
+  <hr class="divider">
+
+  <table>
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th class="center">Qty</th>
+        <th class="right">Price</th>
+      </tr>
+    </thead>
+    <tbody>${itemRows}</tbody>
+    <tfoot>
+      <tr class="total-row">
+        <td colspan="2">Total</td>
+        <td class="right">$${Number(o.total).toFixed(2)}</td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <div class="receipt-footer">
+    ${footer}
+    <p style="margin-top:.6rem;font-size:.72rem;opacity:.6">Receipt generated ${new Date().toLocaleString()} &nbsp;·&nbsp; Order #${o.id}</p>
+  </div>
+
+</div>
+<script>window.onload = () => window.print();<\/script>
+</body>
+</html>`;
+
+    const w = window.open('', '_blank', 'width=650,height=850');
+    w.document.write(html);
+    w.document.close();
   }
 
   init();

@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zondagschool Keuken — Surinaamse Gerechten</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --navy:       #1d3557;
+      --navy-light: #2a4a73;
+      --sky:        #457b9d;
+      --gold:       #d4a843;
+      --dark-gold:  #b08628;
+      --cream:      #fdf6e3;
+      --parchment:  #f5ead0;
+      --light-blue: #e8f1f8;
+      --text:       #2c2011;
+      --brown:      #6b4c2a;
+      --red:        #8b1a1a;
+    }
+
+    body { font-family: Georgia, 'Times New Roman', serif; background: var(--cream); color: var(--text); }
+
+    /* NAV */
+    nav {
+      background: var(--navy);
+      padding: 0 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 12px rgba(0,0,0,.25);
+    }
+    nav .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: white;
+      padding: 1rem 0;
+      letter-spacing: .5px;
+      font-style: italic;
+    }
+    nav .logo span { color: var(--gold); font-style: normal; }
+    nav .logo .cross { font-style: normal; margin-right: .4rem; opacity: .85; }
+    nav ul { list-style: none; display: flex; gap: 2rem; align-items: center; }
+    nav ul a { color: #c8d8ea; text-decoration: none; font-family: 'Segoe UI', sans-serif; font-weight: 500; font-size: .9rem; transition: color .2s; }
+    nav ul a:hover { color: var(--gold); }
+
+    /* HERO */
+    .hero {
+      background: linear-gradient(160deg, #eef4fa 0%, var(--parchment) 55%, #fdf6e3 100%);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5rem 6rem;
+      gap: 3rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '✝';
+      position: absolute;
+      right: 44%;
+      top: -40px;
+      font-size: 28rem;
+      color: rgba(29,53,87,.035);
+      pointer-events: none;
+      line-height: 1;
+      font-family: serif;
+    }
+    .hero-text h1 {
+      font-size: 3.2rem;
+      font-weight: 700;
+      line-height: 1.15;
+      color: var(--navy);
+      font-style: italic;
+    }
+    .hero-text h1 em { font-style: normal; color: var(--gold); }
+    .hero-text .tagline {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 1.2rem 0 .5rem;
+      font-size: 1rem;
+      color: var(--sky);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    .hero-text p {
+      margin: .8rem 0 2rem;
+      font-size: 1.05rem;
+      color: var(--brown);
+      max-width: 420px;
+      line-height: 1.8;
+    }
+
+    .btn {
+      display: inline-block;
+      background: var(--navy);
+      color: white;
+      padding: .85rem 2.2rem;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: .95rem;
+      font-family: 'Segoe UI', sans-serif;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: background .2s, transform .15s;
+      letter-spacing: .5px;
+    }
+    .btn:hover { background: var(--navy-light); transform: translateY(-2px); }
+    .btn-outline {
+      background: transparent;
+      border: 2px solid var(--navy);
+      color: var(--navy);
+      margin-left: 1rem;
+    }
+    .btn-outline:hover { background: var(--navy); color: white; }
+
+    .hero-symbol {
+      font-size: 10rem;
+      line-height: 1;
+      filter: drop-shadow(4px 8px 16px rgba(29,53,87,.18));
+      animation: float 4s ease-in-out infinite;
+      user-select: none;
+      text-align: center;
+    }
+    .hero-sub-symbol { font-size: 3.5rem; display: block; margin-top: .4rem; opacity: .7; }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-16px); }
+    }
+
+    /* DIVIDER */
+    .divider {
+      text-align: center;
+      padding: 1.8rem 0;
+      color: var(--gold);
+      font-size: 1.4rem;
+      letter-spacing: .8rem;
+      background: var(--navy);
+      opacity: .9;
+    }
+
+    /* SECTION HEADERS */
+    .section-header { text-align: center; margin-bottom: 3rem; }
+    .section-header h2 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--navy);
+      font-style: italic;
+      margin-bottom: .5rem;
+    }
+    .section-header p { color: var(--brown); font-size: 1rem; line-height: 1.7; font-family: 'Segoe UI', sans-serif; }
+    .pill {
+      display: inline-block;
+      background: var(--gold);
+      color: var(--navy);
+      font-size: .72rem;
+      font-weight: 700;
+      font-family: 'Segoe UI', sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      padding: .3rem 1rem;
+      border-radius: 2px;
+      margin-bottom: .9rem;
+    }
+
+    /* VERSE BANNER */
+    .verse-banner {
+      background: var(--navy);
+      color: #c8d8ea;
+      text-align: center;
+      padding: 2rem 4rem;
+      font-style: italic;
+      font-size: 1.1rem;
+      line-height: 1.8;
+    }
+    .verse-banner cite {
+      display: block;
+      font-size: .8rem;
+      font-style: normal;
+      color: var(--gold);
+      margin-top: .6rem;
+      font-family: 'Segoe UI', sans-serif;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    /* MENU */
+    .menu { padding: 5rem 6rem; }
+    .menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 2rem; }
+
+    .food-card {
+      background: white;
+      border-radius: 6px;
+      padding: 1.8rem 1.5rem;
+      text-align: center;
+      box-shadow: 0 2px 12px rgba(29,53,87,.08);
+      border-top: 4px solid var(--gold);
+      transition: transform .2s, box-shadow .2s;
+    }
+    .food-card:hover { transform: translateY(-6px); box-shadow: 0 10px 28px rgba(29,53,87,.14); }
+    .food-card .emoji { font-size: 4rem; display: block; margin-bottom: .8rem; }
+    .food-card h3 { font-size: 1.1rem; font-weight: 700; color: var(--navy); margin-bottom: .4rem; font-style: italic; }
+    .food-card p { font-size: .87rem; color: var(--brown); line-height: 1.6; margin-bottom: 1rem; font-family: 'Segoe UI', sans-serif; }
+    .food-card.unavailable { opacity: .55; }
+
+    .price-tag {
+      display: inline-block;
+      background: var(--navy);
+      color: var(--gold);
+      font-weight: 700;
+      font-size: 1rem;
+      font-family: 'Segoe UI', sans-serif;
+      padding: .3rem 1.1rem;
+      border-radius: 3px;
+    }
+    .sold-out-badge {
+      display: inline-block;
+      background: #ddd;
+      color: #777;
+      font-weight: 600;
+      font-size: .75rem;
+      font-family: 'Segoe UI', sans-serif;
+      padding: .22rem .75rem;
+      border-radius: 3px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-left: .5rem;
+    }
+
+    /* ABOUT */
+    .about {
+      background: var(--navy);
+      color: #c8d8ea;
+      padding: 5rem 6rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 4rem;
+    }
+    .about-symbol {
+      font-size: 6rem;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: .5rem;
+      padding-top: .4rem;
+    }
+    .about-symbol small { font-size: 2.5rem; }
+    .about-text h2 { font-size: 1.9rem; font-weight: 700; margin-bottom: 1rem; color: white; font-style: italic; }
+    .about-text p { font-size: .98rem; line-height: 1.9; opacity: .9; max-width: 580px; font-family: 'Segoe UI', sans-serif; }
+    .about-text p + p { margin-top: 1rem; }
+    .stats { display: flex; gap: 2.5rem; margin-top: 2.2rem; }
+    .stat h3 { font-size: 1.9rem; font-weight: 900; color: var(--gold); font-family: 'Segoe UI', sans-serif; }
+    .stat p   { font-size: .82rem; opacity: .8; margin-top: .2rem; font-family: 'Segoe UI', sans-serif; }
+
+    /* HOURS */
+    .hours {
+      padding: 5rem 6rem;
+      display: flex;
+      gap: 4rem;
+      align-items: flex-start;
+      background: var(--light-blue);
+    }
+    .hours-info { flex: 1; }
+    .hours-info h2 { font-size: 1.9rem; font-weight: 700; color: var(--navy); margin-bottom: 1.5rem; font-style: italic; }
+    .hours-table { width: 100%; border-collapse: collapse; font-family: 'Segoe UI', sans-serif; }
+    .hours-table td { padding: .75rem 0; border-bottom: 1px dashed #b8cee0; font-size: .93rem; }
+    .hours-table td:first-child { font-weight: 600; color: var(--navy); }
+    .hours-table td:last-child  { text-align: right; color: var(--sky); }
+    .hours-table tr:last-child td { border-bottom: none; }
+    .hours-note {
+      margin-top: 1.4rem;
+      font-family: 'Segoe UI', sans-serif;
+      color: var(--sky);
+      font-size: .9rem;
+      font-style: italic;
+      line-height: 1.7;
+    }
+
+    .location-card {
+      flex: 1;
+      background: white;
+      border-radius: 6px;
+      height: 300px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: .8rem;
+      color: var(--navy);
+      border-top: 4px solid var(--gold);
+      box-shadow: 0 2px 12px rgba(29,53,87,.08);
+    }
+    .location-card span { font-size: 3.8rem; }
+    .location-card p { font-weight: 700; font-size: 1.05rem; font-style: italic; }
+    .location-card small { color: var(--sky); font-size: .85rem; font-family: 'Segoe UI', sans-serif; }
+
+    /* ORDER */
+    .order-section { background: var(--parchment); padding: 5rem 6rem; }
+    .order-layout { display: flex; gap: 3rem; margin-top: 2.5rem; align-items: flex-start; }
+    .order-picker { flex: 1; }
+    .order-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
+
+    .order-item {
+      background: white;
+      border-radius: 6px;
+      padding: 1.2rem 1rem;
+      text-align: center;
+      border-top: 3px solid var(--gold);
+      box-shadow: 0 2px 8px rgba(29,53,87,.06);
+      transition: box-shadow .2s;
+    }
+    .order-item:hover { box-shadow: 0 6px 18px rgba(29,53,87,.1); }
+    .order-item.out-of-stock { opacity: .4; pointer-events: none; }
+    .order-item .oi-emoji { font-size: 2.6rem; display: block; margin-bottom: .4rem; }
+    .order-item .oi-name  { font-weight: 700; font-size: .88rem; color: var(--navy); font-style: italic; }
+    .order-item .oi-price { font-size: .8rem; color: var(--sky); margin: .15rem 0 .7rem; font-family: 'Segoe UI', sans-serif; }
+    .order-item .oi-stock { font-size: .74rem; color: #8a9db5; margin-bottom: .6rem; font-family: 'Segoe UI', sans-serif; }
+
+    .qty-control { display: flex; align-items: center; justify-content: center; gap: .5rem; }
+    .qty-control button {
+      width: 28px; height: 28px; border-radius: 2px;
+      border: 2px solid var(--navy); background: white;
+      color: var(--navy); font-size: 1.1rem; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background .15s, color .15s;
+    }
+    .qty-control button:hover { background: var(--navy); color: white; }
+    .qty-control span { min-width: 28px; text-align: center; font-weight: 700; font-size: .93rem; color: var(--navy); font-family: 'Segoe UI', sans-serif; }
+
+    .order-sidebar { width: 300px; flex-shrink: 0; position: sticky; top: 80px; }
+
+    .order-form-card {
+      background: white;
+      border-radius: 6px;
+      padding: 1.8rem;
+      box-shadow: 0 4px 20px rgba(29,53,87,.1);
+      border-top: 4px solid var(--navy);
+    }
+    .order-form-card h3 {
+      font-size: 1.05rem; font-weight: 700; color: var(--navy);
+      margin-bottom: 1.2rem; font-style: italic;
+    }
+    .order-form-card input,
+    .order-form-card textarea {
+      width: 100%; padding: .72rem 1rem;
+      border: 1.5px solid #c5d5e6; border-radius: 4px;
+      font-size: .9rem; font-family: 'Segoe UI', sans-serif;
+      color: var(--text); transition: border-color .2s;
+      margin-bottom: .75rem;
+    }
+    .order-form-card input:focus,
+    .order-form-card textarea:focus { outline: none; border-color: var(--navy); }
+    .order-form-card textarea { resize: vertical; min-height: 80px; margin-bottom: 0; }
+
+    .order-summary { border-top: 1px dashed #c5d5e6; margin: 1rem 0; padding-top: 1rem; }
+    .order-summary-row { display: flex; justify-content: space-between; font-size: .86rem; color: var(--sky); margin-bottom: .4rem; font-family: 'Segoe UI', sans-serif; }
+    .order-summary-total {
+      display: flex; justify-content: space-between;
+      font-weight: 800; font-size: 1rem; color: var(--navy);
+      margin-top: .5rem; padding-top: .5rem;
+      border-top: 2px solid var(--gold);
+      font-family: 'Segoe UI', sans-serif;
+    }
+    .order-empty-msg { text-align: center; color: #9aaebc; font-size: .86rem; padding: .5rem 0 .8rem; font-style: italic; font-family: 'Segoe UI', sans-serif; }
+
+    #order-error { color: var(--red); font-size: .84rem; margin-top: .5rem; display: none; font-family: 'Segoe UI', sans-serif; }
+
+    .order-success { text-align: center; padding: 2rem 1rem; }
+    .order-success .big-emoji { font-size: 3.8rem; display: block; margin-bottom: .8rem; }
+    .order-success h3 { color: var(--navy); font-size: 1.15rem; margin-bottom: .5rem; font-style: italic; }
+    .order-success p  { color: var(--sky); font-size: .88rem; font-family: 'Segoe UI', sans-serif; line-height: 1.6; }
+
+    /* FOOTER */
+    footer { background: var(--navy); color: #8ba9c7; text-align: center; padding: 3rem 2rem; }
+    footer .footer-logo { font-size: 1.4rem; font-weight: 700; color: white; margin-bottom: .4rem; font-style: italic; }
+    footer .footer-logo span { color: var(--gold); font-style: normal; }
+    footer .verse { font-style: italic; font-size: .95rem; color: #a8c0d8; margin: .6rem 0 1.2rem; line-height: 1.6; }
+    footer p { font-size: .85rem; margin-top: .4rem; font-family: 'Segoe UI', sans-serif; }
+    footer .social { margin-top: 1.2rem; display: flex; justify-content: center; gap: 1rem; }
+    footer .social a { color: #8ba9c7; text-decoration: none; font-size: .88rem; font-family: 'Segoe UI', sans-serif; transition: color .2s; }
+    footer .social a:hover { color: var(--gold); }
+
+    /* RESPONSIVE */
+    @media (max-width: 900px) {
+      .hero { flex-direction: column; padding: 3rem 2rem; text-align: center; }
+      .hero::before { display: none; }
+      .hero-text p { margin-left: auto; margin-right: auto; }
+      .hero-symbol { font-size: 7rem; }
+      .menu, .about, .hours, .order-section { padding: 3rem 1.5rem; }
+      .about { flex-direction: column; text-align: center; }
+      .about-symbol { flex-direction: row; font-size: 4rem; }
+      .stats { justify-content: center; }
+      .hours { flex-direction: column; }
+      .order-layout { flex-direction: column; }
+      .order-sidebar { width: 100%; position: static; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="logo"><span class="cross">✝</span> Zondagschool <span>Keuken</span></div>
+    <ul>
+      <li><a href="#menu">Menu</a></li>
+      <li><a href="#about">Over Ons</a></li>
+      <li><a href="#hours">Tijden</a></li>
+      <li><a href="#order">Bestellen</a></li>
+      <li><a href="/" style="opacity:.6">🍩 Donut Shop</a></li>
+    </ul>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-text">
+      <div class="tagline">✝ Gemeenschap &amp; Gezelligheid</div>
+      <h1>Gedeeld met<br><em>Liefde &amp; Geloof</em></h1>
+      <p>
+        Traditionele Surinaamse gerechten, bereid met zorg en toewijding — net zoals onze
+        grootmoeders dat deden na de zondagsdienst. Vers, hartelijk en vol smaak.
+      </p>
+      <a href="#menu" class="btn">Bekijk het Menu</a>
+      <a href="#order" class="btn btn-outline">Bestellen</a>
+    </div>
+    <div class="hero-symbol">
+      🕊️
+      <span class="hero-sub-symbol">🥘</span>
+    </div>
+  </section>
+
+  <!-- VERSE BANNER -->
+  <div class="verse-banner">
+    "En zij bleven dagelijks eendrachtig bijeen in de tempel, en terwijl zij van huis tot huis brood braken, aten zij samen met blijdschap en eenvoud des harten."
+    <cite>— Handelingen 2:46</cite>
+  </div>
+
+  <!-- MENU -->
+  <section class="menu" id="menu">
+    <div class="section-header">
+      <span class="pill">✝ Vers Bereid</span>
+      <h2>Surinaams Menu</h2>
+      <p>Traditionele smaken, met liefde en geloof bereid — elk gerecht is een zegen op je bord.</p>
+    </div>
+    <div class="menu-grid" id="menu-grid">
+      <p style="color:#9aaebc;font-size:1rem;font-style:italic;">Menu laden...</p>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section class="about" id="about">
+    <div class="about-symbol">
+      ✝️
+      <small>🙏</small>
+    </div>
+    <div class="about-text">
+      <h2>Een Tafel voor Iedereen</h2>
+      <p>
+        Na elke zondagsdienst kwamen families samen om te eten, te lachen en te delen.
+        Die traditie — het breken van brood, het delen van maaltijden, de warmte van
+        gemeenschap — is de ziel van onze keuken.
+      </p>
+      <p>
+        Onze Surinaamse gerechten dragen de rijkdom mee van generaties: Afrikaanse,
+        Indiase, Javaanse en Nederlandse invloeden, allemaal samengebracht in één pot,
+        net zoals God ons allen samenbrengt.
+      </p>
+      <div class="stats">
+        <div class="stat"><h3>10+</h3><p>Traditionele gerechten</p></div>
+        <div class="stat"><h3>100%</h3><p>Vers &amp; met zorg</p></div>
+        <div class="stat"><h3>3 gen.</h3><p>Familierecept</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOURS & LOCATION -->
+  <section class="hours" id="hours">
+    <div class="hours-info">
+      <h2>Tijden &amp; Locatie</h2>
+      <table class="hours-table">
+        <tr><td>Zondag</td><td>Na de Dienst – 15:00</td></tr>
+        <tr><td>Dinsdag – Vrijdag</td><td>11:00 – 20:00</td></tr>
+        <tr><td>Zaterdag</td><td>10:00 – 21:00</td></tr>
+        <tr><td>Maandag</td><td>Gesloten</td></tr>
+      </table>
+      <div class="hours-note">
+        ✝ Op zondag serveren wij na de ochtenddienst.<br>
+        📍 Paramaribo, Suriname<br>
+        📞 (597) 812-3456<br>
+        ✉️ info@zondagschoolkeuken.sr
+      </div>
+    </div>
+    <div class="location-card">
+      <span>✝️</span>
+      <p>Paramaribo Centrum</p>
+      <small>Na de zondagsdienst</small>
+      <small style="margin-top:.3rem;">Suriname</small>
+    </div>
+  </section>
+
+  <!-- ORDER -->
+  <section class="order-section" id="order">
+    <div class="section-header">
+      <span class="pill">✝ Online Bestellen</span>
+      <h2>Uw Bestelling</h2>
+      <p>Kies uw gerechten, vul uw gegevens in en wij bereiden alles vers voor u. Een zegen voor elke tafel!</p>
+    </div>
+
+    <div class="order-layout">
+      <div class="order-picker">
+        <div class="order-picker-grid" id="order-picker-grid">
+          <p style="color:#9aaebc;font-style:italic;">Menu laden…</p>
+        </div>
+      </div>
+
+      <div class="order-sidebar">
+        <div class="order-form-card" id="order-form-card">
+          <h3>✝ Uw Bestelling</h3>
+          <input type="text"  id="order-name"  placeholder="Uw naam *" />
+          <input type="email" id="order-email" placeholder="Uw e-mailadres *" />
+          <textarea id="order-notes" placeholder="Opmerkingen, bijzondere wensen, ophaaltijd…"></textarea>
+
+          <div class="order-summary" id="order-summary">
+            <div class="order-empty-msg" id="order-empty-msg">Kies gerechten om te beginnen</div>
+            <div id="order-summary-rows"></div>
+            <div class="order-summary-total" id="order-total" style="display:none">
+              <span>Totaal</span><span id="order-total-price">SRD 0.00</span>
+            </div>
+          </div>
+
+          <div id="order-error"></div>
+          <button class="btn" style="width:100%;padding:.9rem;margin-top:.8rem" onclick="placeOrder()">
+            Bestelling Plaatsen ✝
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-logo">✝ Zondagschool <span>Keuken</span></div>
+    <div class="verse">"Proef en zie dat de HEERE goed is." — Psalm 34:9</div>
+    <p>Authentiek Surinaams eten, bereid met geloof en liefde in Paramaribo.</p>
+    <div class="social">
+      <a href="#">Instagram</a>
+      <a href="#">Facebook</a>
+      <a href="#">WhatsApp</a>
+    </div>
+    <p style="margin-top:1.5rem; font-size:.78rem; opacity:.5;">© 2026 Zondagschool Keuken. Alle rechten voorbehouden.</p>
+  </footer>
+
+  <script>
+    let allItems = [];
+    let quantities = {};
+
+    async function loadMenu() {
+      const menuGrid  = document.getElementById('menu-grid');
+      const orderGrid = document.getElementById('order-picker-grid');
+      try {
+        allItems = await fetch('/api/food-items').then(r => r.json());
+
+        const visible = allItems.filter(d => d.available);
+        if (!visible.length) {
+          menuGrid.innerHTML = '<p style="color:#9aaebc;font-style:italic;">Geen gerechten beschikbaar op dit moment — kom snel terug!</p>';
+        } else {
+          menuGrid.innerHTML = visible.map(d => `
+            <div class="food-card${d.quantity === 0 ? ' unavailable' : ''}">
+              <span class="emoji">${d.emoji}</span>
+              <h3>${d.name}</h3>
+              <p>${d.description}</p>
+              <span class="price-tag">SRD ${Number(d.price).toFixed(2)}</span>
+              ${d.quantity === 0 ? '<span class="sold-out-badge">Uitverkocht</span>' : ''}
+            </div>`).join('');
+        }
+
+        const orderable = allItems.filter(d => d.available);
+        if (!orderable.length) {
+          orderGrid.innerHTML = '<p style="color:#9aaebc;font-style:italic;">Geen gerechten beschikbaar om te bestellen.</p>';
+          return;
+        }
+        orderGrid.innerHTML = orderable.map(d => {
+          const soldOut = d.quantity === 0;
+          return `
+            <div class="order-item${soldOut ? ' out-of-stock' : ''}" id="oi-${d.id}">
+              <span class="oi-emoji">${d.emoji}</span>
+              <div class="oi-name">${d.name}</div>
+              <div class="oi-price">SRD ${Number(d.price).toFixed(2)} per stuk</div>
+              <div class="oi-stock">${soldOut ? 'Uitverkocht' : `${d.quantity} beschikbaar`}</div>
+              <div class="qty-control">
+                <button onclick="changeQty(${d.id}, -1)">−</button>
+                <span id="qty-${d.id}">0</span>
+                <button onclick="changeQty(${d.id}, +1)">+</button>
+              </div>
+            </div>`;
+        }).join('');
+      } catch {
+        menuGrid.innerHTML  = '<p style="color:#9aaebc;font-style:italic;">Menu kon niet worden geladen. Probeer het later opnieuw.</p>';
+        orderGrid.innerHTML = '<p style="color:#9aaebc;font-style:italic;">Menu kon niet worden geladen.</p>';
+      }
+    }
+
+    function changeQty(id, delta) {
+      const item = allItems.find(d => d.id === id);
+      const current = quantities[id] || 0;
+      const next = Math.max(0, Math.min(item.quantity, current + delta));
+      quantities[id] = next;
+      document.getElementById(`qty-${id}`).textContent = next;
+      updateSummary();
+    }
+
+    function updateSummary() {
+      const rows  = document.getElementById('order-summary-rows');
+      const empty = document.getElementById('order-empty-msg');
+      const total = document.getElementById('order-total');
+      const totalPrice = document.getElementById('order-total-price');
+
+      const selected = Object.entries(quantities)
+        .filter(([, q]) => q > 0)
+        .map(([id, q]) => ({ item: allItems.find(d => d.id === Number(id)), q }));
+
+      if (!selected.length) {
+        empty.style.display = 'block';
+        rows.innerHTML = '';
+        total.style.display = 'none';
+        return;
+      }
+
+      empty.style.display = 'none';
+      rows.innerHTML = selected.map(({ item, q }) => `
+        <div class="order-summary-row">
+          <span>${item.emoji} ${item.name} ×${q}</span>
+          <span>SRD ${(item.price * q).toFixed(2)}</span>
+        </div>`).join('');
+
+      const sum = selected.reduce((s, { item, q }) => s + item.price * q, 0);
+      totalPrice.textContent = `SRD ${sum.toFixed(2)}`;
+      total.style.display = 'flex';
+    }
+
+    async function placeOrder() {
+      const errEl = document.getElementById('order-error');
+      errEl.style.display = 'none';
+
+      const customerName  = document.getElementById('order-name').value.trim();
+      const customerEmail = document.getElementById('order-email').value.trim();
+      const notes         = document.getElementById('order-notes').value.trim();
+
+      if (!customerName)  { showOrderError('Vul alstublieft uw naam in.'); return; }
+      if (!customerEmail) { showOrderError('Vul alstublieft uw e-mailadres in.'); return; }
+
+      const items = Object.entries(quantities)
+        .filter(([, q]) => q > 0)
+        .map(([itemId, quantity]) => ({ itemId: Number(itemId), quantity }));
+
+      if (!items.length) { showOrderError('Kies alstublieft minstens één gerecht.'); return; }
+
+      const btn = event.target;
+      btn.disabled = true; btn.textContent = 'Bestelling verwerken…';
+
+      try {
+        const res = await fetch('/api/food-orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items, customerName, customerEmail, notes })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          showOrderError(data.error || 'Er is iets misgegaan.');
+          btn.disabled = false; btn.textContent = 'Bestelling Plaatsen ✝';
+          return;
+        }
+
+        document.getElementById('order-form-card').innerHTML = `
+          <div class="order-success">
+            <span class="big-emoji">🙏</span>
+            <h3>Dank u, ${customerName}!</h3>
+            <p>Uw bestelling van ${data.items.reduce((s, i) => s + i.quantity, 0)} gerecht(en)
+               (totaal: <strong>SRD ${data.total.toFixed(2)}</strong>) is ontvangen.
+               Een bevestiging is verstuurd naar uw e-mailadres. God zegene u!</p>
+          </div>`;
+
+        quantities = {};
+        loadMenu();
+      } catch {
+        showOrderError('Netwerkfout — probeer het opnieuw.');
+        btn.disabled = false; btn.textContent = 'Bestelling Plaatsen ✝';
+      }
+    }
+
+    function showOrderError(msg) {
+      const el = document.getElementById('order-error');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    loadMenu();
+  </script>
+</body>
+</html>
