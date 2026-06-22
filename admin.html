@@ -267,6 +267,24 @@
           <label>From Address <span style="font-weight:400;color:#9a7050">(optional — must be verified in Brevo)</span></label>
           <input type="text" id="s-smtp-from" placeholder="you@yourdomain.com" />
         </div>
+        <h3>Customer Confirmation Email</h3>
+        <p style="font-size:.85rem;color:#9a7050;margin-bottom:1rem">
+          Customize the email sent to customers when they place an order.
+          Supported variables:
+          <code style="background:#f5f0ec;padding:.1rem .35rem;border-radius:4px;font-size:.8rem">{{customerName}}</code>
+          <code style="background:#f5f0ec;padding:.1rem .35rem;border-radius:4px;font-size:.8rem">{{orderTable}}</code>
+          <code style="background:#f5f0ec;padding:.1rem .35rem;border-radius:4px;font-size:.8rem">{{notes}}</code>
+          <code style="background:#f5f0ec;padding:.1rem .35rem;border-radius:4px;font-size:.8rem">{{total}}</code>
+        </p>
+        <div class="form-group">
+          <label>Subject Line</label>
+          <input type="text" id="s-confirm-subject" placeholder="Your order is confirmed!" />
+        </div>
+        <div class="form-group">
+          <label>Email Body <span style="font-weight:400;color:#9a7050">(HTML)</span></label>
+          <textarea id="s-confirm-body" style="min-height:220px;font-family:monospace;font-size:.8rem;line-height:1.5"></textarea>
+          <div class="form-hint">Write HTML. Variables above are substituted at send time. Leave blank to use the built-in default.</div>
+        </div>
         <div style="display:flex;gap:.8rem;margin-top:1.5rem;flex-wrap:wrap">
           <button class="btn btn-pink" onclick="saveSettings()">Save Settings</button>
           <button class="btn btn-ghost" onclick="testEmail()">Send Test Email</button>
@@ -562,16 +580,20 @@
 
   async function loadSettings() {
     const s = await api('GET', '/api/settings');
-    document.getElementById('s-notify-email').value = s.notify_email || '';
-    document.getElementById('s-brevo-key').value    = s.brevo_key    || '';
-    document.getElementById('s-smtp-from').value    = s.smtp_from    || '';
+    document.getElementById('s-notify-email').value    = s.notify_email         || '';
+    document.getElementById('s-brevo-key').value       = s.brevo_key            || '';
+    document.getElementById('s-smtp-from').value       = s.smtp_from            || '';
+    document.getElementById('s-confirm-subject').value = s.order_confirm_subject || '';
+    document.getElementById('s-confirm-body').value    = s.order_confirm_body    || '';
   }
 
   async function saveSettings() {
     await api('PUT', '/api/settings', {
-      notify_email: document.getElementById('s-notify-email').value.trim(),
-      brevo_key:    document.getElementById('s-brevo-key').value || '••••••••',
-      smtp_from:    document.getElementById('s-smtp-from').value.trim(),
+      notify_email:          document.getElementById('s-notify-email').value.trim(),
+      brevo_key:             document.getElementById('s-brevo-key').value || '••••••••',
+      smtp_from:             document.getElementById('s-smtp-from').value.trim(),
+      order_confirm_subject: document.getElementById('s-confirm-subject').value.trim(),
+      order_confirm_body:    document.getElementById('s-confirm-body').value,
     });
     toast('Settings saved!', 'success');
   }

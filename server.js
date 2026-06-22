@@ -96,7 +96,7 @@ app.get('/api/settings', requireAuth, async (req, res) => {
 
 app.put('/api/settings', requireAuth, async (req, res) => {
   try {
-    const allowed = ['brevo_key', 'smtp_from', 'smtp_user', 'notify_email'];
+    const allowed = ['brevo_key', 'smtp_from', 'smtp_user', 'notify_email', 'order_confirm_subject', 'order_confirm_body'];
     for (const key of allowed) {
       if (!(key in req.body)) continue;
       if (key === 'brevo_key' && req.body[key] === '••••••••') continue;
@@ -217,22 +217,20 @@ app.post('/api/orders', async (req, res) => {
        ${notes ? `<p><b>Notes:</b> ${notes}</p>` : ''}`
     ).catch(() => {});
 
-    // Send confirmation to the customer
-    sendEmail(
-      `Your Glazed & Amazed order is confirmed! 🍩`,
-      `<div style="font-family:sans-serif;max-width:520px;margin:auto">
-        <h2 style="color:#f7567c">Thanks for your order, ${customerName}!</h2>
-        <p>We're getting your donuts ready. Here's what you ordered:</p>
-        ${orderTable}
-        ${notes ? `<p><b>Your notes:</b> ${notes}</p>` : ''}
-        <p style="margin-top:1.5rem;color:#7a5230">
-          📍 123 Sprinkle Lane, Bakerville, CA 90210<br>
-          📞 (555) 867-5309
-        </p>
-        <p style="color:#aaa;font-size:.85rem">Glazed &amp; Amazed — Made fresh daily.</p>
-       </div>`,
-      customerEmail
-    ).catch(() => {});
+    // Send confirmation to the customer (template editable in admin Email Settings)
+    const s = await getSettings();
+    const notesHtml = notes ? `<p><b>Your notes:</b> ${notes}</p>` : '';
+    const confirmSubject = (s.order_confirm_subject || `Your Glazed & Amazed order is confirmed! 🍩`)
+      .replace(/\{\{customerName\}\}/g, customerName)
+      .replace(/\{\{total\}\}/g, `$${total.toFixed(2)}`);
+    const confirmBody = s.order_confirm_body
+      ? s.order_confirm_body
+          .replace(/\{\{customerName\}\}/g, customerName)
+          .replace(/\{\{orderTable\}\}/g, orderTable)
+          .replace(/\{\{notes\}\}/g, notesHtml)
+          .replace(/\{\{total\}\}/g, `$${total.toFixed(2)}`)
+      : `<div style="font-family:sans-serif;max-width:520px;margin:auto"><h2 style="color:#f7567c">Thanks for your order, ${customerName}!</h2><p>We're getting your donuts ready. Here's what you ordered:</p>${orderTable}${notesHtml}<p style="margin-top:1.5rem;color:#7a5230">📍 123 Sprinkle Lane, Bakerville, CA 90210<br>📞 (555) 867-5309</p><p style="color:#aaa;font-size:.85rem">Glazed &amp; Amazed — Made fresh daily.</p></div>`;
+    sendEmail(confirmSubject, confirmBody, customerEmail).catch(() => {});
 
     // Low stock alerts
     for (const { donut } of orderItems) {

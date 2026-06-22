@@ -43,8 +43,11 @@ async function init() {
   }
 
   // Default settings
+  const confirmBodyDefault = '<div style="font-family:sans-serif;max-width:520px;margin:auto"><h2 style="color:#f7567c">Thanks for your order, {{customerName}}!</h2><p>We\'re getting your donuts ready. Here\'s what you ordered:</p>{{orderTable}}{{notes}}<p style="margin-top:1.5rem;color:#7a5230">📍 123 Sprinkle Lane, Bakerville, CA 90210<br>📞 (555) 867-5309</p><p style="color:#aaa;font-size:.85rem">Glazed &amp; Amazed — Made fresh daily.</p></div>';
   const settingDefaults = [
     ['brevo_key', ''], ['smtp_from', ''], ['smtp_user', ''], ['notify_email', 'chivarao@gmail.com'],
+    ['order_confirm_subject', 'Your Glazed & Amazed order is confirmed! 🍩'],
+    ['order_confirm_body', confirmBodyDefault],
   ];
   for (const [k, v] of settingDefaults) {
     await db.execute({ sql: 'INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', args: [k, v] });
