@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Confirm Your Email</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #ffe0ec 0%, #fff3e0 100%);
+           min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .card { background: #fff; border-radius: 20px; padding: 2.5rem; max-width: 400px; width: 100%;
+            box-shadow: 0 12px 40px rgba(0,0,0,.12); text-align: center; }
+    .big { font-size: 3rem; margin-bottom: .5rem; }
+    h1 { color: #5c3317; font-size: 1.3rem; margin-bottom: .6rem; }
+    p { color: #9a7050; font-size: .92rem; }
+    a.btn { display: inline-block; margin-top: 1.2rem; padding: .7rem 1.6rem; background: #f7567c;
+            color: #fff; border-radius: 50px; font-weight: 700; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="card" id="card"><div class="big">⏳</div><h1>Confirming your email…</h1></div>
+  <script>
+    const token = new URLSearchParams(location.search).get('token');
+    const card = document.getElementById('card');
+    async function run() {
+      if (!token) { card.innerHTML = '<div class="big">⚠️</div><h1>Invalid link</h1><p>No confirmation token found.</p>'; return; }
+      const res = await fetch('/api/customer/verify', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
+      });
+      if (res.ok) {
+        card.innerHTML = '<div class="big">✅</div><h1>Email confirmed!</h1><p>Thanks — your account is verified.</p><a class="btn" href="/">Back to the shop</a>';
+      } else {
+        const d = await res.json().catch(() => ({}));
+        card.innerHTML = '<div class="big">⚠️</div><h1>Could not confirm</h1><p>' + (d.error || 'This link is invalid or already used.') + '</p><a class="btn" href="/">Back to the shop</a>';
+      }
+    }
+    run();
+  </script>
+</body>
+</html>

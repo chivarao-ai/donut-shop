@@ -567,6 +567,10 @@
       <!-- Logged-in: profile + order history -->
       <div id="account-profile" style="display:none;">
         <p style="color:#7a5230;margin-bottom:1rem;">Signed in as <strong id="profile-email"></strong></p>
+        <div id="verify-banner" style="display:none;background:#fff3cd;border:1px solid #ffc107;border-radius:10px;padding:.7rem .9rem;margin-bottom:1rem;font-size:.85rem;color:#856404;">
+          ⚠️ Please confirm your email address.
+          <a href="#" onclick="resendVerification();return false;" style="color:#d63b60;font-weight:700;">Resend email</a>
+        </div>
         <button class="btn btn-outline" style="width:100%;margin-bottom:1.2rem;" onclick="doLogout()">Log Out</button>
         <h4 style="color:var(--brown);margin-bottom:.8rem;border-top:1px dashed #f0d0dc;padding-top:1rem;">My Orders</h4>
         <div id="order-history" style="font-size:.88rem;color:#7a5230;">Loading…</div>
@@ -883,6 +887,7 @@
         prof.style.display = 'block';
         document.getElementById('account-title').textContent = 'My Account';
         document.getElementById('profile-email').textContent = currentCustomer.email;
+        document.getElementById('verify-banner').style.display = currentCustomer.verified === false ? 'block' : 'none';
         loadOrderHistory();
       } else {
         auth.style.display = 'block';
@@ -951,6 +956,11 @@
       el.style.display = 'block';
     }
     let myOrders = [];
+    async function resendVerification() {
+      await fetch('/api/customer/resend-verification', { method: 'POST' });
+      document.getElementById('verify-banner').innerHTML = '✅ Verification email sent — check your inbox.';
+    }
+
     async function loadOrderHistory() {
       const el = document.getElementById('order-history');
       el.textContent = 'Loading…';

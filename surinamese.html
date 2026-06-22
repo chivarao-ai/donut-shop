@@ -490,6 +490,10 @@
 
       <div id="account-profile" style="display:none;">
         <p style="color:var(--brown);margin-bottom:1rem;">Ingelogd als <strong id="profile-email"></strong></p>
+        <div id="verify-banner" style="display:none;background:#fef3cd;border:1px solid #d4a843;border-radius:8px;padding:.7rem .9rem;margin-bottom:1rem;font-size:.85rem;color:#6b4c2a;">
+          ⚠️ Bevestig uw e-mailadres.
+          <a href="#" onclick="resendVerification();return false;" style="color:var(--red);font-weight:700;">Opnieuw versturen</a>
+        </div>
         <button class="btn btn-outline" style="width:100%;margin-bottom:1.2rem;" onclick="doLogout()">Uitloggen</button>
         <h4 style="color:var(--navy);margin-bottom:.8rem;border-top:1px dashed #d8c9a8;padding-top:1rem;">Mijn Bestellingen</h4>
         <div id="order-history" style="font-size:.88rem;color:var(--brown);">Laden…</div>
@@ -817,6 +821,7 @@
         prof.style.display = 'block';
         document.getElementById('account-title').textContent = 'Mijn Account';
         document.getElementById('profile-email').textContent = currentCustomer.email;
+        document.getElementById('verify-banner').style.display = currentCustomer.verified === false ? 'block' : 'none';
         loadOrderHistory();
       } else {
         auth.style.display = 'block';
@@ -884,6 +889,11 @@
       el.textContent = 'Als er een account bestaat voor dit e-mailadres, is er een herstel-link onderweg.';
       el.style.display = 'block';
     }
+    async function resendVerification() {
+      await fetch('/api/customer/resend-verification', { method: 'POST' });
+      document.getElementById('verify-banner').innerHTML = '✅ Verificatie-e-mail verstuurd — controleer uw inbox.';
+    }
+
     let myOrders = [];
     async function loadOrderHistory() {
       const el = document.getElementById('order-history');

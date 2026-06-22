@@ -70,6 +70,8 @@ async function init() {
   try { await db.execute('ALTER TABLE orders ADD COLUMN track_token TEXT'); } catch {}
   try { await db.execute('ALTER TABLE customers ADD COLUMN reset_token TEXT'); } catch {}
   try { await db.execute('ALTER TABLE customers ADD COLUMN reset_expires TEXT'); } catch {}
+  try { await db.execute('ALTER TABLE customers ADD COLUMN verified INTEGER DEFAULT 0'); } catch {}
+  try { await db.execute('ALTER TABLE customers ADD COLUMN verify_token TEXT'); } catch {}
 
   // Default admin
   const adminRow = await db.execute('SELECT id FROM admin WHERE id = 1');

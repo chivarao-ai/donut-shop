@@ -138,6 +138,20 @@ function requireCustomer(req, res, next) {
   res.status(401).json({ error: 'Please log in' });
 }
 
+function sendVerifyEmail(req, customer, token) {
+  const link = `${siteUrl(req)}/verify-email.html?token=${token}`;
+  return sendEmail(
+    'Confirm your email address',
+    `<div style="font-family:sans-serif;max-width:520px;margin:auto">
+      <h2 style="color:#f7567c">Welcome, ${esc(customer.name)}!</h2>
+      <p>Please confirm your email address to finish setting up your account.</p>
+      <p><a href="${link}" style="display:inline-block;background:#f7567c;color:#fff;padding:.7rem 1.4rem;border-radius:8px;text-decoration:none">Confirm my email</a></p>
+      <p style="color:#9a7050;font-size:.85rem">If you didn't create an account, you can ignore this email.</p>
+    </div>`,
+    customer.email
+  );
+}
+
 app.post('/api/customer/register', loginLimiter, async (req, res) => {
   try {
     const name  = String(req.body.name || '').trim();
@@ -151,12 +165,14 @@ app.post('/api/customer/register', loginLimiter, async (req, res) => {
     const existing = await db.execute({ sql: 'SELECT id FROM customers WHERE email = ?', args: [email] });
     if (existing.rows.length) return res.status(409).json({ error: 'An account with this email already exists' });
 
+    const verifyToken = crypto.randomBytes(32).toString('hex');
     const result = await db.execute({
-      sql:  'INSERT INTO customers (name, email, password_hash, created_at) VALUES (?, ?, ?, ?)',
-      args: [name, email, bcrypt.hashSync(password, 10), new Date().toISOString()],
+      sql:  'INSERT INTO customers (name, email, password_hash, created_at, verify_token) VALUES (?, ?, ?, ?, ?)',
+      args: [name, email, bcrypt.hashSync(password, 10), new Date().toISOString(), verifyToken],
     });
     req.session.customer = { id: Number(result.lastInsertRowid), name, email };
-    res.status(201).json({ ok: true, customer: { name, email } });
+    sendVerifyEmail(req, { name, email }, verifyToken).catch(() => {});
+    res.status(201).json({ ok: true, customer: { name, email, verified: false } });
   } catch (e) { res.status(500).json({ error: 'Could not create account' }); }
 });
 
@@ -178,8 +194,41 @@ app.post('/api/customer/logout', (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/customer/me', (req, res) => {
-  res.json({ customer: req.session.customer || null });
+app.get('/api/customer/me', async (req, res) => {
+  if (!req.session.customer) return res.json({ customer: null });
+  try {
+    const r = await db.execute({ sql: 'SELECT verified FROM customers WHERE id = ?', args: [req.session.customer.id] });
+    const verified = r.rows.length ? Number(r.rows[0].verified) === 1 : false;
+    res.json({ customer: { ...req.session.customer, verified } });
+  } catch {
+    res.json({ customer: { ...req.session.customer, verified: false } });
+  }
+});
+
+app.post('/api/customer/verify', async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'Invalid verification link' });
+    const r = await db.execute({ sql: 'SELECT id FROM customers WHERE verify_token = ?', args: [String(token)] });
+    if (!r.rows.length) return res.status(400).json({ error: 'This link is invalid or already used' });
+    await db.execute({ sql: 'UPDATE customers SET verified = 1, verify_token = NULL WHERE id = ?', args: [r.rows[0].id] });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Verification failed' }); }
+});
+
+app.post('/api/customer/resend-verification', requireCustomer, async (req, res) => {
+  try {
+    const r = await db.execute({ sql: 'SELECT * FROM customers WHERE id = ?', args: [req.session.customer.id] });
+    const customer = r.rows[0];
+    if (!customer || Number(customer.verified) === 1) return res.json({ ok: true });
+    let token = customer.verify_token;
+    if (!token) {
+      token = crypto.randomBytes(32).toString('hex');
+      await db.execute({ sql: 'UPDATE customers SET verify_token = ? WHERE id = ?', args: [token, customer.id] });
+    }
+    sendVerifyEmail(req, customer, token).catch(() => {});
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Could not resend' }); }
 });
 
 app.post('/api/customer/forgot', loginLimiter, async (req, res) => {
