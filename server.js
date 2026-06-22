@@ -1,20 +1,45 @@
 const express    = require('express');
 const session    = require('express-session');
 const bcrypt     = require('bcryptjs');
+const helmet     = require('helmet');
+const rateLimit  = require('express-rate-limit');
 const path       = require('path');
 const { db, init } = require('./db');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
+const isProd = process.env.NODE_ENV === 'production';
 
-app.use(express.json());
+// Behind Render's proxy — required for secure cookies and correct client IPs.
+app.set('trust proxy', 1);
+
+// Security headers. CSP is disabled because the pages rely on inline scripts,
+// inline event handlers and inline styles; the other helmet protections
+// (HSTS, noSniff, frameguard, referrer-policy, etc.) still apply.
+app.use(helmet({ contentSecurityPolicy: false }));
+
+app.use(express.json({ limit: '100kb' }));
 app.use(express.static(__dirname));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'glazed-secret-change-in-production',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 8 * 60 * 60 * 1000 }
+  cookie: {
+    maxAge: 8 * 60 * 60 * 1000,
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isProd,
+  }
 }));
+
+// Throttle credential-guessing on the login endpoints.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Please try again in a few minutes.' },
+});
 
 function requireAuth(req, res, next) {
   if (req.session.admin) return next();
@@ -22,6 +47,21 @@ function requireAuth(req, res, next) {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+// Escape user-supplied text before embedding it in notification email HTML,
+// preventing HTML/script injection through names, emails and order notes.
+function esc(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function isEmail(value) {
+  return typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) && value.length <= 254;
+}
 
 async function getSettings() {
   const rows = await db.execute('SELECT key, value FROM settings');
@@ -50,7 +90,7 @@ async function sendEmail(subject, html, to) {
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', loginLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
     const result = await db.execute({ sql: 'SELECT * FROM admin WHERE username = ?', args: [username] });
@@ -168,8 +208,11 @@ app.delete('/api/donuts/:id', requireAuth, async (req, res) => {
 app.post('/api/orders', async (req, res) => {
   try {
     const { items, customerName, customerEmail, notes } = req.body;
-    if (!customerName)  return res.status(400).json({ error: 'Your name is required' });
-    if (!customerEmail) return res.status(400).json({ error: 'Your email is required' });
+    if (!customerName || String(customerName).trim().length === 0)
+      return res.status(400).json({ error: 'Your name is required' });
+    if (String(customerName).length > 120) return res.status(400).json({ error: 'Name is too long' });
+    if (!isEmail(customerEmail)) return res.status(400).json({ error: 'A valid email is required' });
+    if (notes && String(notes).length > 1000) return res.status(400).json({ error: 'Notes are too long' });
     if (!items || !items.length) return res.status(400).json({ error: 'No items selected' });
 
     const orderItems = [];
@@ -215,26 +258,26 @@ app.post('/api/orders', async (req, res) => {
 
     // Notify the shop owner
     sendEmail(
-      `🍩 New Order from ${customerName}`,
+      `🍩 New Order from ${esc(customerName)}`,
       `<h2 style="color:#f7567c">New Order Received</h2>
-       <p><b>Customer:</b> ${customerName} &lt;${customerEmail}&gt;</p>
+       <p><b>Customer:</b> ${esc(customerName)} &lt;${esc(customerEmail)}&gt;</p>
        ${orderTable}
-       ${notes ? `<p><b>Notes:</b> ${notes}</p>` : ''}`
+       ${notes ? `<p><b>Notes:</b> ${esc(notes)}</p>` : ''}`
     ).catch(() => {});
 
     // Send confirmation to the customer (template editable in admin Email Settings)
     const s = await getSettings();
-    const notesHtml = notes ? `<p><b>Your notes:</b> ${notes}</p>` : '';
+    const notesHtml = notes ? `<p><b>Your notes:</b> ${esc(notes)}</p>` : '';
     const confirmSubject = (s.order_confirm_subject || `Your Glazed & Amazed order is confirmed! 🍩`)
-      .replace(/\{\{customerName\}\}/g, customerName)
+      .replace(/\{\{customerName\}\}/g, esc(customerName))
       .replace(/\{\{total\}\}/g, `$${total.toFixed(2)}`);
     const confirmBody = s.order_confirm_body
       ? s.order_confirm_body
-          .replace(/\{\{customerName\}\}/g, customerName)
+          .replace(/\{\{customerName\}\}/g, esc(customerName))
           .replace(/\{\{orderTable\}\}/g, orderTable)
           .replace(/\{\{notes\}\}/g, notesHtml)
           .replace(/\{\{total\}\}/g, `$${total.toFixed(2)}`)
-      : `<div style="font-family:sans-serif;max-width:520px;margin:auto"><h2 style="color:#f7567c">Thanks for your order, ${customerName}!</h2><p>We're getting your donuts ready. Here's what you ordered:</p>${orderTable}${notesHtml}<p style="margin-top:1.5rem;color:#7a5230">📍 123 Sprinkle Lane, Bakerville, CA 90210<br>📞 (555) 867-5309</p><p style="color:#aaa;font-size:.85rem">Glazed &amp; Amazed — Made fresh daily.</p></div>`;
+      : `<div style="font-family:sans-serif;max-width:520px;margin:auto"><h2 style="color:#f7567c">Thanks for your order, ${esc(customerName)}!</h2><p>We're getting your donuts ready. Here's what you ordered:</p>${orderTable}${notesHtml}<p style="margin-top:1.5rem;color:#7a5230">📍 123 Sprinkle Lane, Bakerville, CA 90210<br>📞 (555) 867-5309</p><p style="color:#aaa;font-size:.85rem">Glazed &amp; Amazed — Made fresh daily.</p></div>`;
     sendEmail(confirmSubject, confirmBody, customerEmail).catch(() => {});
 
     // Low stock alerts
@@ -309,8 +352,11 @@ app.delete('/api/food-items/:id', requireAuth, async (req, res) => {
 app.post('/api/food-orders', async (req, res) => {
   try {
     const { items, customerName, customerEmail, notes } = req.body;
-    if (!customerName)  return res.status(400).json({ error: 'Your name is required' });
-    if (!customerEmail) return res.status(400).json({ error: 'Your email is required' });
+    if (!customerName || String(customerName).trim().length === 0)
+      return res.status(400).json({ error: 'Your name is required' });
+    if (String(customerName).length > 120) return res.status(400).json({ error: 'Name is too long' });
+    if (!isEmail(customerEmail)) return res.status(400).json({ error: 'A valid email is required' });
+    if (notes && String(notes).length > 1000) return res.status(400).json({ error: 'Notes are too long' });
     if (!items || !items.length) return res.status(400).json({ error: 'No items selected' });
 
     const orderItems = [];
@@ -355,18 +401,18 @@ app.post('/api/food-orders', async (req, res) => {
       </table>`;
 
     sendEmail(
-      `🥘 New Sranan Kitchen Order from ${customerName}`,
+      `🥘 New Sranan Kitchen Order from ${esc(customerName)}`,
       `<h2 style="color:#2d6a4f">New Order — Sranan Kitchen</h2>
-       <p><b>Customer:</b> ${customerName} &lt;${customerEmail}&gt;</p>
+       <p><b>Customer:</b> ${esc(customerName)} &lt;${esc(customerEmail)}&gt;</p>
        ${orderTable}
-       ${notes ? `<p><b>Notes:</b> ${notes}</p>` : ''}`
+       ${notes ? `<p><b>Notes:</b> ${esc(notes)}</p>` : ''}`
     ).catch(() => {});
 
-    const notesHtml = notes ? `<p><b>Your notes:</b> ${notes}</p>` : '';
+    const notesHtml = notes ? `<p><b>Your notes:</b> ${esc(notes)}</p>` : '';
     sendEmail(
       `Your Sranan Kitchen order is confirmed! 🥘`,
       `<div style="font-family:sans-serif;max-width:520px;margin:auto">
-        <h2 style="color:#2d6a4f">Thanks for your order, ${customerName}!</h2>
+        <h2 style="color:#2d6a4f">Thanks for your order, ${esc(customerName)}!</h2>
         <p>We're preparing your Surinamese dishes. Here's what you ordered:</p>
         ${orderTable}
         ${notesHtml}
@@ -442,10 +488,10 @@ app.post('/api/orders/:id/handle', requireAuth, async (req, res) => {
           <p style="color:#d4a843;margin:.3rem 0 0;font-family:sans-serif;font-size:.9rem">Surinaamse Keuken</p>
         </div>
         <div style="padding:2rem;background:#fdf6e3">
-          <h2 style="color:#1d3557">Uw bestelling is klaar, ${order.customer_name}!</h2>
+          <h2 style="color:#1d3557">Uw bestelling is klaar, ${esc(order.customer_name)}!</h2>
           <p style="line-height:1.8;font-family:sans-serif">Goed nieuws — uw bestelling staat klaar om afgehaald te worden. Wij wensen u smakelijk eten. God zegene u!</p>
           ${orderTable}
-          ${order.notes ? `<p style="margin-top:1rem;font-family:sans-serif"><b>Uw opmerking:</b> ${order.notes}</p>` : ''}
+          ${order.notes ? `<p style="margin-top:1rem;font-family:sans-serif"><b>Uw opmerking:</b> ${esc(order.notes)}</p>` : ''}
           <p style="margin-top:1.5rem;color:#457b9d;font-family:sans-serif;font-size:.9rem">📍 Paramaribo, Suriname<br>📞 (597) 812-3456</p>
           <p style="color:#aaa;font-size:.82rem;font-style:italic;margin-top:1rem">"Proef en zie dat de HEERE goed is." — Psalm 34:9</p>
         </div>
@@ -457,10 +503,10 @@ app.post('/api/orders/:id/handle', requireAuth, async (req, res) => {
           <h1 style="color:white;margin:0">🍩 Glazed &amp; Amazed</h1>
         </div>
         <div style="padding:2rem;background:#fff8f0">
-          <h2 style="color:#d63b60">Your order is ready, ${order.customer_name}!</h2>
+          <h2 style="color:#d63b60">Your order is ready, ${esc(order.customer_name)}!</h2>
           <p style="line-height:1.8">Great news — your donuts are fresh out of the fryer and ready for pickup. Come get them while they're warm!</p>
           ${orderTable}
-          ${order.notes ? `<p style="margin-top:1rem"><b>Your notes:</b> ${order.notes}</p>` : ''}
+          ${order.notes ? `<p style="margin-top:1rem"><b>Your notes:</b> ${esc(order.notes)}</p>` : ''}
           <p style="margin-top:1.5rem;color:#7a5230">📍 123 Sprinkle Lane, Bakerville, CA 90210<br>📞 (555) 867-5309</p>
           <p style="color:#aaa;font-size:.85rem">Glazed &amp; Amazed — Made fresh daily.</p>
         </div>
