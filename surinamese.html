@@ -413,9 +413,46 @@
       <li><a href="#about">Over Ons</a></li>
       <li><a href="#hours">Tijden</a></li>
       <li><a href="#order">Bestellen</a></li>
+      <li id="nav-account"><a href="#" onclick="openAccount();return false;">Account</a></li>
       <li><a href="/" style="opacity:.6">🍩 Donut Shop</a></li>
     </ul>
   </nav>
+
+  <!-- ACCOUNT MODAL -->
+  <div id="account-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:300;align-items:flex-start;justify-content:center;overflow:auto;padding:3rem 1rem;">
+    <div style="background:#fdf6e3;border-radius:16px;max-width:420px;width:100%;padding:2rem;box-shadow:0 12px 40px rgba(0,0,0,.3);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <h3 id="account-title" style="color:var(--navy);font-size:1.3rem;">Mijn Account</h3>
+        <button onclick="closeAccount()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--navy);">×</button>
+      </div>
+
+      <div id="account-auth">
+        <div style="display:flex;gap:.5rem;margin-bottom:1.2rem;">
+          <button id="tab-login-btn"    class="btn btn-outline" style="flex:1" onclick="switchAuthTab('login')">Inloggen</button>
+          <button id="tab-register-btn" class="btn btn-outline" style="flex:1" onclick="switchAuthTab('register')">Registreren</button>
+        </div>
+        <div id="auth-login">
+          <input type="email"    id="login-email" placeholder="E-mailadres" style="width:100%;padding:.75rem 1rem;border:2px solid #d8c9a8;border-radius:8px;margin-bottom:.8rem;font-family:inherit;" />
+          <input type="password" id="login-pass"  placeholder="Wachtwoord" style="width:100%;padding:.75rem 1rem;border:2px solid #d8c9a8;border-radius:8px;margin-bottom:.8rem;font-family:inherit;" />
+          <button class="btn" style="width:100%" onclick="doLogin()">Inloggen</button>
+        </div>
+        <div id="auth-register" style="display:none;">
+          <input type="text"     id="reg-name"  placeholder="Uw naam" style="width:100%;padding:.75rem 1rem;border:2px solid #d8c9a8;border-radius:8px;margin-bottom:.8rem;font-family:inherit;" />
+          <input type="email"    id="reg-email" placeholder="E-mailadres" style="width:100%;padding:.75rem 1rem;border:2px solid #d8c9a8;border-radius:8px;margin-bottom:.8rem;font-family:inherit;" />
+          <input type="password" id="reg-pass"  placeholder="Wachtwoord (min. 8 tekens)" style="width:100%;padding:.75rem 1rem;border:2px solid #d8c9a8;border-radius:8px;margin-bottom:.8rem;font-family:inherit;" />
+          <button class="btn" style="width:100%" onclick="doRegister()">Account Aanmaken</button>
+        </div>
+        <div id="account-error" style="color:var(--red);font-size:.85rem;margin-top:.8rem;display:none;"></div>
+      </div>
+
+      <div id="account-profile" style="display:none;">
+        <p style="color:var(--brown);margin-bottom:1rem;">Ingelogd als <strong id="profile-email"></strong></p>
+        <button class="btn btn-outline" style="width:100%;margin-bottom:1.2rem;" onclick="doLogout()">Uitloggen</button>
+        <h4 style="color:var(--navy);margin-bottom:.8rem;border-top:1px dashed #d8c9a8;padding-top:1rem;">Mijn Bestellingen</h4>
+        <div id="order-history" style="font-size:.88rem;color:var(--brown);">Laden…</div>
+      </div>
+    </div>
+  </div>
 
   <!-- HERO -->
   <section class="hero">
@@ -701,7 +738,118 @@
       el.style.display = 'block';
     }
 
+    // ── Klantaccounts ───────────────────────────────────────────────────────────
+    let currentCustomer = null;
+
+    async function loadCustomer() {
+      try {
+        const { customer } = await fetch('/api/customer/me').then(r => r.json());
+        currentCustomer = customer;
+      } catch { currentCustomer = null; }
+      const navAcct = document.querySelector('#nav-account a');
+      if (currentCustomer) {
+        navAcct.textContent = `Hallo, ${currentCustomer.name.split(' ')[0]}`;
+        const n = document.getElementById('order-name');
+        const e = document.getElementById('order-email');
+        if (n && !n.value) n.value = currentCustomer.name;
+        if (e && !e.value) e.value = currentCustomer.email;
+      } else {
+        navAcct.textContent = 'Account';
+      }
+    }
+
+    function openAccount() {
+      document.getElementById('account-overlay').style.display = 'flex';
+      renderAccount();
+    }
+    function closeAccount() {
+      document.getElementById('account-overlay').style.display = 'none';
+    }
+    function renderAccount() {
+      const auth = document.getElementById('account-auth');
+      const prof = document.getElementById('account-profile');
+      hideAccountError();
+      if (currentCustomer) {
+        auth.style.display = 'none';
+        prof.style.display = 'block';
+        document.getElementById('account-title').textContent = 'Mijn Account';
+        document.getElementById('profile-email').textContent = currentCustomer.email;
+        loadOrderHistory();
+      } else {
+        auth.style.display = 'block';
+        prof.style.display = 'none';
+        document.getElementById('account-title').textContent = 'Inloggen';
+        switchAuthTab('login');
+      }
+    }
+    function switchAuthTab(tab) {
+      document.getElementById('auth-login').style.display    = tab === 'login'    ? 'block' : 'none';
+      document.getElementById('auth-register').style.display = tab === 'register' ? 'block' : 'none';
+      document.getElementById('tab-login-btn').style.opacity    = tab === 'login'    ? '1' : '.5';
+      document.getElementById('tab-register-btn').style.opacity = tab === 'register' ? '1' : '.5';
+      hideAccountError();
+    }
+    function showAccountError(msg) {
+      const el = document.getElementById('account-error');
+      el.textContent = msg; el.style.display = 'block';
+    }
+    function hideAccountError() { document.getElementById('account-error').style.display = 'none'; }
+
+    async function doRegister() {
+      const name = document.getElementById('reg-name').value.trim();
+      const email = document.getElementById('reg-email').value.trim();
+      const password = document.getElementById('reg-pass').value;
+      const res = await fetch('/api/customer/register', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password })
+      });
+      const data = await res.json();
+      if (!res.ok) return showAccountError(data.error || 'Registreren mislukt.');
+      currentCustomer = data.customer;
+      await loadCustomer();
+      renderAccount();
+    }
+    async function doLogin() {
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-pass').value;
+      const res = await fetch('/api/customer/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (!res.ok) return showAccountError(data.error || 'Inloggen mislukt.');
+      currentCustomer = data.customer;
+      await loadCustomer();
+      renderAccount();
+    }
+    async function doLogout() {
+      await fetch('/api/customer/logout', { method: 'POST' });
+      currentCustomer = null;
+      await loadCustomer();
+      renderAccount();
+    }
+    async function loadOrderHistory() {
+      const el = document.getElementById('order-history');
+      el.textContent = 'Laden…';
+      try {
+        const orders = await fetch('/api/customer/orders').then(r => r.json());
+        if (!orders.length) { el.innerHTML = '<p style="color:var(--brown)">Nog geen bestellingen.</p>'; return; }
+        el.innerHTML = orders.map(o => {
+          const items = JSON.parse(o.items_json);
+          const when = new Date(o.created_at).toLocaleDateString('nl-NL');
+          const badge = o.status === 'handled' ? '✅ Klaar' : '⏳ In behandeling';
+          const lines = items.map(i => `${i.emoji} ${i.name} ×${i.quantity}`).join(', ');
+          return `<div style="border:1px solid #d8c9a8;border-radius:8px;padding:.7rem .9rem;margin-bottom:.6rem;">
+            <div style="display:flex;justify-content:space-between;"><strong>${when}</strong><span>${badge}</span></div>
+            <div style="margin:.3rem 0;color:#6b4c2a;">${lines}</div>
+            <div style="text-align:right;font-weight:700;color:var(--navy);">$${Number(o.total).toFixed(2)}</div>
+          </div>`;
+        }).join('');
+      } catch { el.innerHTML = '<p style="color:var(--brown)">Kon bestellingen niet laden.</p>'; }
+    }
+
     loadMenu();
+    loadCustomer();
   </script>
 </body>
 </html>

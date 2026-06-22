@@ -53,11 +53,20 @@ async function init() {
       created_at TEXT NOT NULL,
       handled_at TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS customers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
   `);
 
   // Idempotent migrations
   try { await db.execute('ALTER TABLE donuts ADD COLUMN quantity INTEGER DEFAULT 0'); } catch {}
   try { await db.execute('ALTER TABLE donuts ADD COLUMN low_stock_threshold INTEGER DEFAULT 5'); } catch {}
+  try { await db.execute('ALTER TABLE orders ADD COLUMN customer_id INTEGER'); } catch {}
 
   // Default admin
   const adminRow = await db.execute('SELECT id FROM admin WHERE id = 1');

@@ -125,6 +125,67 @@ app.post('/api/change-password', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Customer accounts ─────────────────────────────────────────────────────────
+
+function requireCustomer(req, res, next) {
+  if (req.session.customer) return next();
+  res.status(401).json({ error: 'Please log in' });
+}
+
+app.post('/api/customer/register', loginLimiter, async (req, res) => {
+  try {
+    const name  = String(req.body.name || '').trim();
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const { password } = req.body;
+    if (!name || name.length > 120) return res.status(400).json({ error: 'A valid name is required' });
+    if (!isEmail(email))            return res.status(400).json({ error: 'A valid email is required' });
+    if (!password || String(password).length < 8)
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+
+    const existing = await db.execute({ sql: 'SELECT id FROM customers WHERE email = ?', args: [email] });
+    if (existing.rows.length) return res.status(409).json({ error: 'An account with this email already exists' });
+
+    const result = await db.execute({
+      sql:  'INSERT INTO customers (name, email, password_hash, created_at) VALUES (?, ?, ?, ?)',
+      args: [name, email, bcrypt.hashSync(password, 10), new Date().toISOString()],
+    });
+    req.session.customer = { id: Number(result.lastInsertRowid), name, email };
+    res.status(201).json({ ok: true, customer: { name, email } });
+  } catch (e) { res.status(500).json({ error: 'Could not create account' }); }
+});
+
+app.post('/api/customer/login', loginLimiter, async (req, res) => {
+  try {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const { password } = req.body;
+    const result = await db.execute({ sql: 'SELECT * FROM customers WHERE email = ?', args: [email] });
+    const customer = result.rows[0];
+    if (!customer || !bcrypt.compareSync(String(password || ''), customer.password_hash))
+      return res.status(401).json({ error: 'Invalid email or password' });
+    req.session.customer = { id: Number(customer.id), name: customer.name, email: customer.email };
+    res.json({ ok: true, customer: { name: customer.name, email: customer.email } });
+  } catch (e) { res.status(500).json({ error: 'Login failed' }); }
+});
+
+app.post('/api/customer/logout', (req, res) => {
+  delete req.session.customer;
+  res.json({ ok: true });
+});
+
+app.get('/api/customer/me', (req, res) => {
+  res.json({ customer: req.session.customer || null });
+});
+
+app.get('/api/customer/orders', requireCustomer, async (req, res) => {
+  try {
+    const result = await db.execute({
+      sql:  'SELECT id, type, items_json, total, status, created_at, handled_at FROM orders WHERE customer_email = ? ORDER BY created_at DESC',
+      args: [req.session.customer.email],
+    });
+    res.json(result.rows);
+  } catch (e) { res.status(500).json({ error: 'Could not load orders' }); }
+});
+
 // ── Settings ──────────────────────────────────────────────────────────────────
 
 app.get('/api/settings', requireAuth, async (req, res) => {
@@ -240,8 +301,8 @@ app.post('/api/orders', async (req, res) => {
     const total = orderItems.reduce((s, { donut, quantity }) => s + Number(donut.price) * quantity, 0);
 
     await db.execute({
-      sql:  'INSERT INTO orders (type, customer_name, customer_email, notes, items_json, total, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      args: ['donut', customerName, customerEmail, notes || '', JSON.stringify(orderItems.map(({ donut, quantity }) => ({ name: donut.name, emoji: donut.emoji, quantity, price: Number(donut.price) }))), total, 'pending', new Date().toISOString()],
+      sql:  'INSERT INTO orders (type, customer_name, customer_email, notes, items_json, total, status, created_at, customer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      args: ['donut', customerName, customerEmail, notes || '', JSON.stringify(orderItems.map(({ donut, quantity }) => ({ name: donut.name, emoji: donut.emoji, quantity, price: Number(donut.price) }))), total, 'pending', new Date().toISOString(), req.session.customer ? req.session.customer.id : null],
     });
 
     const itemRows = orderItems
@@ -384,8 +445,8 @@ app.post('/api/food-orders', async (req, res) => {
     const total = orderItems.reduce((s, { item, quantity }) => s + Number(item.price) * quantity, 0);
 
     await db.execute({
-      sql:  'INSERT INTO orders (type, customer_name, customer_email, notes, items_json, total, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      args: ['food', customerName, customerEmail, notes || '', JSON.stringify(orderItems.map(({ item, quantity }) => ({ name: item.name, emoji: item.emoji, quantity, price: Number(item.price) }))), total, 'pending', new Date().toISOString()],
+      sql:  'INSERT INTO orders (type, customer_name, customer_email, notes, items_json, total, status, created_at, customer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      args: ['food', customerName, customerEmail, notes || '', JSON.stringify(orderItems.map(({ item, quantity }) => ({ name: item.name, emoji: item.emoji, quantity, price: Number(item.price) }))), total, 'pending', new Date().toISOString(), req.session.customer ? req.session.customer.id : null],
     });
 
     const itemRows = orderItems
